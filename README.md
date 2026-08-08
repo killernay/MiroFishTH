@@ -176,6 +176,26 @@ Reads `.env` from root directory by default, maps ports `3000 (frontend) / 5001 
 
 > Mirror address for faster pulling is provided as comments in `docker-compose.yml`, replace if needed.
 
+### Run a Local Source Build
+
+Use this option to run the code checked out locally (for example, MiroFishTH), rather than the prebuilt upstream image. It uses host ports `3410` and `5101` to avoid the default ports; choose other unused host ports if these are already taken.
+
+```bash
+# Build from the current checkout. Existing .env values are used unchanged.
+docker build -t mirofishth:local .
+
+# Start the frontend and backend in one container.
+docker run -d \
+  --name mirofishth \
+  --env-file .env \
+  -p 3410:3000 \
+  -p 5101:5001 \
+  -v "$PWD/backend/uploads:/app/backend/uploads" \
+  mirofishth:local
+```
+
+Open `http://localhost:3410`. The frontend proxies API requests to the backend inside the container; port `5101` is only needed for direct API access.
+
 ## 📬 Join the Conversation
 
 <div align="center">

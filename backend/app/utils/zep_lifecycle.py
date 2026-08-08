@@ -7,11 +7,12 @@ multi-worker deployments.
 """
 
 import threading
+import time
 
 
 _graph_locks: dict[str, threading.RLock] = {}
 _graph_locks_guard = threading.Lock()
-_graph_readers: dict[str, set[str]] = {}
+_graph_readers: dict[str, dict[str, float]] = {}
 
 
 def graph_lifecycle_lock(graph_id: str) -> threading.RLock:
@@ -23,13 +24,13 @@ def graph_lifecycle_lock(graph_id: str) -> threading.RLock:
         return _graph_locks.setdefault(graph_id, threading.RLock())
 
 
-def register_graph_reader(graph_id: str, reader_id: str) -> None:
+def register_graph_reader(graph_id: str, reader_id: str, ttl_seconds: float = 3600.0) -> None:
     """Register a long-running read lease under the graph lifecycle lock."""
 
     if not reader_id:
         raise ValueError("reader_id is required")
     with graph_lifecycle_lock(graph_id):
-        _graph_readers.setdefault(graph_id, set()).add(reader_id)
+        _graph_readers.setdefault(graph_id, {})[reader_id] = time.monotonic() + ttl_seconds
 
 
 def unregister_graph_reader(graph_id: str, reader_id: str) -> None:
@@ -39,7 +40,7 @@ def unregister_graph_reader(graph_id: str, reader_id: str) -> None:
         readers = _graph_readers.get(graph_id)
         if not readers:
             return
-        readers.discard(reader_id)
+        readers.pop(reader_id, None)
         if not readers:
             _graph_readers.pop(graph_id, None)
 
@@ -48,4 +49,12 @@ def get_graph_readers(graph_id: str) -> list[str]:
     """Return active reader IDs while serializing with lifecycle mutations."""
 
     with graph_lifecycle_lock(graph_id):
-        return sorted(_graph_readers.get(graph_id, set()))
+        readers = _graph_readers.get(graph_id, {})
+        now = time.monotonic()
+        for reader_id, deadline in list(readers.items()):
+            if deadline <= now:
+                readers.pop(reader_id, None)
+        if not readers:
+            _graph_readers.pop(graph_id, None)
+            return []
+        return sorted(readers)

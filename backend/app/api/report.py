@@ -14,6 +14,7 @@ from ..services.report_agent import ReportAgent, ReportManager, ReportStatus
 from ..services.simulation_manager import SimulationManager
 from ..services.simulation_runner import SimulationRunner, RunnerStatus
 from ..services.zep_graph_memory_updater import ZepGraphMemoryManager
+from ..services.run_lifecycle import derive_lifecycle
 from ..models.project import ProjectManager, ProjectStatus
 from ..models.task import TaskManager, TaskStatus
 from ..utils.logger import get_logger
@@ -29,20 +30,11 @@ logger = get_logger('mirofish.api.report')
 
 def _is_live_interview_ready(run_state, simulation_id: str) -> bool:
     """Actions are complete while OASIS remains in command-wait mode."""
-    if not run_state or run_state.runner_status != RunnerStatus.RUNNING:
-        return False
-    if not SimulationRunner.check_env_alive(simulation_id):
-        return False
-    enabled_platforms = []
-    for prefix in ("twitter", "reddit"):
-        enabled = bool(
-            getattr(run_state, f"{prefix}_completed", False)
-            or getattr(run_state, f"{prefix}_running", False)
-            or getattr(run_state, f"{prefix}_actions_count", 0)
-        )
-        if enabled:
-            enabled_platforms.append(getattr(run_state, f"{prefix}_completed", False))
-    return bool(enabled_platforms) and all(enabled_platforms)
+    lifecycle = derive_lifecycle(
+        run_state,
+        environment_alive=SimulationRunner.check_env_alive(simulation_id),
+    )
+    return lifecycle.can_interview and lifecycle.can_report
 
 
 # ============== 报告生成接口 ==============

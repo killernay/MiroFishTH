@@ -27,6 +27,7 @@ from ..utils.zep import (
 )
 from .zep_graph_memory_updater import ZepGraphMemoryManager
 from .simulation_ipc import SimulationIPCClient, CommandType, IPCResponse
+from .oasis_session import OASISSession
 
 logger = get_logger('mirofish.simulation_runner')
 
@@ -1688,8 +1689,7 @@ class SimulationRunner:
         if not os.path.exists(sim_dir):
             return False
 
-        ipc_client = SimulationIPCClient(sim_dir)
-        return ipc_client.check_env_alive()
+        return OASISSession(sim_dir).is_alive()
 
     @classmethod
     def get_env_status_detail(cls, simulation_id: str) -> Dict[str, Any]:
@@ -1760,14 +1760,13 @@ class SimulationRunner:
         if not os.path.exists(sim_dir):
             raise ValueError(f"模拟不存在: {simulation_id}")
 
-        ipc_client = SimulationIPCClient(sim_dir)
-
-        if not ipc_client.check_env_alive():
+        session = OASISSession(sim_dir)
+        if not session.is_alive():
             raise ValueError(f"模拟环境未运行或已关闭，无法执行Interview: {simulation_id}")
 
         logger.info(f"发送Interview命令: simulation_id={simulation_id}, agent_id={agent_id}, platform={platform}")
 
-        response = ipc_client.send_interview(
+        response = session.interview(
             agent_id=agent_id,
             prompt=prompt,
             platform=platform,
@@ -1822,14 +1821,13 @@ class SimulationRunner:
         if not os.path.exists(sim_dir):
             raise ValueError(f"模拟不存在: {simulation_id}")
 
-        ipc_client = SimulationIPCClient(sim_dir)
-
-        if not ipc_client.check_env_alive():
+        session = OASISSession(sim_dir)
+        if not session.is_alive():
             raise ValueError(f"模拟环境未运行或已关闭，无法执行Interview: {simulation_id}")
 
         logger.info(f"发送批量Interview命令: simulation_id={simulation_id}, count={len(interviews)}, platform={platform}")
 
-        response = ipc_client.send_batch_interview(
+        response = session.batch_interview(
             interviews=interviews,
             platform=platform,
             timeout=timeout
@@ -1932,9 +1930,8 @@ class SimulationRunner:
         if not os.path.exists(sim_dir):
             raise ValueError(f"模拟不存在: {simulation_id}")
         
-        ipc_client = SimulationIPCClient(sim_dir)
-        
-        if not ipc_client.check_env_alive():
+        session = OASISSession(sim_dir)
+        if not session.is_alive():
             return {
                 "success": True,
                 "message": "环境已经关闭"
@@ -1943,7 +1940,7 @@ class SimulationRunner:
         logger.info(f"发送关闭环境命令: simulation_id={simulation_id}")
         
         try:
-            response = ipc_client.send_close_env(timeout=timeout)
+            response = session.close(timeout=timeout)
             
             return {
                 "success": response.status.value == "completed",

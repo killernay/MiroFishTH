@@ -74,7 +74,11 @@ def localize_system_output(value):
         return value
     for source, (english, thai) in sorted(_SYSTEM_OUTPUT_TERMS.items(), key=lambda item: len(item[0]), reverse=True):
         value = value.replace(source, system_message(english, thai))
-    return value
+    return _redact_unmapped_han(value)
+
+
+def _redact_unmapped_han(value):
+    return ''.join('[source text]' if '\u4e00' <= char <= '\u9fff' else char for char in value)
 
 
 def print(*values, **kwargs):

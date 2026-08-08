@@ -6,6 +6,7 @@
 import os
 import sys
 import logging
+import re
 from datetime import datetime
 from logging.handlers import RotatingFileHandler
 
@@ -25,6 +26,21 @@ def _ensure_utf8_stdout():
 
 # 日志目录
 LOG_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'logs')
+_HAN_PATTERN = re.compile(r'[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]+')
+
+
+class LocaleSafeLogFilter(logging.Filter):
+    """Keep system logs in the selected UI language without leaking raw CJK errors."""
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        try:
+            rendered = record.getMessage()
+            record.msg = _HAN_PATTERN.sub('[source text]', rendered)
+            record.args = ()
+        except Exception:
+            # Logging must never break the application.
+            pass
+        return True
 
 
 def setup_logger(name: str = 'mirofish', level: int = logging.DEBUG) -> logging.Logger:
@@ -73,6 +89,7 @@ def setup_logger(name: str = 'mirofish', level: int = logging.DEBUG) -> logging.
     )
     file_handler.setLevel(logging.DEBUG)
     file_handler.setFormatter(detailed_formatter)
+    file_handler.addFilter(LocaleSafeLogFilter())
     
     # 2. 控制台处理器 - 简洁日志（INFO及以上）
     # 确保 Windows 下使用 UTF-8 编码，避免中文乱码
@@ -80,6 +97,7 @@ def setup_logger(name: str = 'mirofish', level: int = logging.DEBUG) -> logging.
     console_handler = logging.StreamHandler(sys.stdout)
     console_handler.setLevel(logging.INFO)
     console_handler.setFormatter(simple_formatter)
+    console_handler.addFilter(LocaleSafeLogFilter())
     
     # 添加处理器
     logger.addHandler(file_handler)
@@ -123,4 +141,3 @@ def error(msg: str, *args, **kwargs) -> None:
 
 def critical(msg: str, *args, **kwargs) -> None:
     logger.critical(msg, *args, **kwargs)
-

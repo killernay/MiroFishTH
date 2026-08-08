@@ -1461,14 +1461,16 @@ Break this question into at most {max_queries} sub-questions:
             
         except ValueError as e:
             # 模拟环境未运行
-            logger.warning(t("console.interviewApiCallFailed", error=e))
-            result.summary = t('zepTools.interviewUnavailable', error=str(e))
+            safe_error = t('zepTools.interviewEnvironmentClosed')
+            logger.warning(t("console.interviewApiCallFailed", error=safe_error))
+            result.summary = t('zepTools.interviewUnavailable', error=safe_error)
             return result
         except Exception as e:
-            logger.error(t("console.interviewApiCallException", error=e))
+            safe_error = t('zepTools.interviewRequestFailed')
+            logger.error(t("console.interviewApiCallException", error=safe_error))
             import traceback
             logger.error(traceback.format_exc())
-            result.summary = t('zepTools.interviewError', error=str(e))
+            result.summary = t('zepTools.interviewError', error=safe_error)
             return result
         
         # Step 6: 生成采访摘要

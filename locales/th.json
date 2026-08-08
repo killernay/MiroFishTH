@@ -895,6 +895,8 @@
     "platformResponses": "[คำตอบจาก Twitter]\n{twitter}\n\n[คำตอบจาก Reddit]\n{reddit}",
     "interviewUnavailable": "ไม่สามารถทำการสัมภาษณ์ได้: {error} สภาพแวดล้อมการจำลองอาจปิดอยู่ โปรดตรวจสอบว่า OASIS กำลังทำงาน",
     "interviewError": "เกิดข้อผิดพลาดระหว่างการสัมภาษณ์: {error}",
+    "interviewEnvironmentClosed": "สภาพแวดล้อมการจำลองไม่ได้ทำงานอยู่",
+    "interviewRequestFailed": "คำขอสัมภาษณ์ล้มเหลว",
     "notProvided": "ไม่ได้ระบุ",
     "autoSelectedByRelevance": "เลือกโดยอัตโนมัติตามความเกี่ยวข้อง",
     "defaultSelectionStrategy": "กลยุทธ์การเลือกเริ่มต้น",

@@ -889,6 +889,8 @@
     "platformResponses": "[Twitter response]\n{twitter}\n\n[Reddit response]\n{reddit}",
     "interviewUnavailable": "The interview could not be completed: {error}. The simulation environment may be closed; ensure OASIS is running.",
     "interviewError": "An error occurred during the interview: {error}",
+    "interviewEnvironmentClosed": "the simulation environment is not running",
+    "interviewRequestFailed": "the interview request failed",
     "notProvided": "Not provided",
     "autoSelectedByRelevance": "Automatically selected by relevance",
     "defaultSelectionStrategy": "Default selection strategy",

@@ -286,7 +286,7 @@ def generate_report():
                             report.error or t('api.reportGenerateFailed')
                         )
                 except Exception as e:
-                    logger.error(f"报告生成失败: {str(e)}")
+                    logger.error("Report generation failed")
                     task_manager.fail_task(task_id, str(e))
                 finally:
                     unregister_graph_reader(graph_id, report_id)
@@ -311,7 +311,7 @@ def generate_report():
         })
         
     except Exception as e:
-        logger.error(f"启动报告生成任务失败: {str(e)}")
+        logger.error("Failed to start report generation task")
         return jsonify({
             "success": False,
             "error": str(e),
@@ -384,7 +384,7 @@ def get_generate_status():
         })
         
     except Exception as e:
-        logger.error(f"查询任务状态失败: {str(e)}")
+        logger.error("Failed to query report task status")
         return jsonify({
             "success": False,
             "error": str(e)

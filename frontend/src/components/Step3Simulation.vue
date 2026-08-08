@@ -321,7 +321,8 @@ import {
   stopSimulation,
   closeSimulationEnv,
   getRunStatus,
-  getRunStatusDetail
+  getRunStatusDetail,
+  getEnvStatus
 } from '../api/simulation'
 import { generateReport, checkReportStatus } from '../api/report'
 import { resumeSimulationEnvironment } from '../api/simulation'
@@ -729,7 +730,20 @@ const handleNextStep = async () => {
       // completed. Reopen the disposable IPC environment; never rerun actions.
       addLog('OASIS is unavailable; reopening the completed simulation for report interviews...')
       await resumeSimulationEnvironment(props.simulationId)
-      await new Promise(resolve => setTimeout(resolve, 1500))
+      // The resume endpoint starts a subprocess asynchronously. Wait for the
+      // backend's live-process check instead of racing the report request
+      // against OASIS startup.
+      const deadline = Date.now() + 30000
+      let envReady = false
+      while (Date.now() < deadline) {
+        const env = await getEnvStatus({ simulation_id: props.simulationId })
+        envReady = Boolean(env?.data?.env_alive)
+        if (envReady) break
+        await new Promise(resolve => setTimeout(resolve, 500))
+      }
+      if (!envReady) {
+        throw new Error('OASIS environment did not become ready after resume')
+      }
       res = await generateReport({
         simulation_id: props.simulationId,
         force_regenerate: true

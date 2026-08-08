@@ -627,6 +627,12 @@
     "redirectToInsightForge": "get_simulation_context redirected to insight_forge"
   },
   "console": {
+    "backendStarting": "MiroFish Backend starting...",
+    "simulationCleanupRegistered": "Simulation process cleanup handler registered",
+    "httpRequest": "Request: {method} {path}",
+    "httpRequestBody": "Request body: {body}",
+    "httpResponse": "Response: {status}",
+    "backendStarted": "MiroFish Backend started",
     "zepToolsInitialized": "ZepToolsService initialized",
     "zepRetryAttempt": "Zep {operation} attempt {attempt} failed: {error}, retrying in {delay}s...",
     "zepAllRetriesFailed": "Zep {operation} failed after {retries} attempts: {error}",

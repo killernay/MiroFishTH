@@ -633,6 +633,12 @@
     "redirectToInsightForge": "get_simulation_context เปลี่ยนเส้นทางไปที่ Insight_forge"
   },
   "console": {
+    "backendStarting": "กำลังเริ่ม MiroFish Backend...",
+    "simulationCleanupRegistered": "ลงทะเบียนตัวจัดการทำความสะอาดกระบวนการจำลองแล้ว",
+    "httpRequest": "คำขอ: {method} {path}",
+    "httpRequestBody": "เนื้อหาคำขอ: {body}",
+    "httpResponse": "การตอบกลับ: {status}",
+    "backendStarted": "เริ่ม MiroFish Backend แล้ว",
     "zepToolsInitialized": "เริ่มต้น ZepToolsService แล้ว",
     "zepRetryAttempt": "Zep {operation} พยายาม {attempt} ล้มเหลว: {error} กำลังลองอีกครั้งใน {delay}s...",
     "zepAllRetriesFailed": "Zep {operation} ล้มเหลวหลังจากพยายาม {retries}: {error}",

@@ -34,6 +34,7 @@ from .zep_tools import (
     PanoramaResult,
     InterviewResult
 )
+from .evidence_ledger import EvidenceLedger
 
 logger = get_logger('mirofish.report_agent')
 
@@ -933,6 +934,7 @@ class ReportAgent:
         self.tools = self._define_tools()
         # Only server-retrieved tool output can be emitted as quoted evidence.
         self._verified_source_results: List[str] = []
+        self._evidence_ledger = EvidenceLedger()
         
         # 日志记录器（在 generate_report 中初始化）
         self.report_logger: Optional[ReportLogger] = None
@@ -976,21 +978,18 @@ class ReportAgent:
 
     @staticmethod
     def _normalise_evidence(text: str) -> str:
-        """Remove presentation-only Markdown before comparing a source quote."""
-        lines = []
-        for line in str(text).replace("\r\n", "\n").split("\n"):
-            stripped = line.strip()
-            if stripped.startswith("```"):
-                continue
-            if stripped.startswith(">"):
-                stripped = stripped[1:].lstrip()
-            lines.append(stripped)
-        return re.sub(r"\s+", " ", " ".join(lines)).strip()
+        """Compatibility wrapper for the evidence ledger canonical form."""
+        return EvidenceLedger.canonical(text)
 
     def _validated_evidence_text(self, evidence: str) -> Optional[str]:
         """Return the canonical model quote only when it matches live tool output."""
         if not evidence:
             return None
+        ledger = getattr(self, "_evidence_ledger", None)
+        if ledger is not None:
+            record = ledger.match(evidence)
+            if record is not None:
+                return ledger.canonical(evidence)
         normalised = self._normalise_evidence(evidence)
         if not normalised:
             return None
@@ -1013,6 +1012,11 @@ class ReportAgent:
 
     def _remember_source_evidence(self, result: str) -> None:
         if result:
+            ledger = getattr(self, "_evidence_ledger", None)
+            if ledger is None:
+                ledger = EvidenceLedger()
+                self._evidence_ledger = ledger
+            ledger.record(result, tool_name="report-tool")
             self._verified_source_results = [
                 *getattr(self, "_verified_source_results", []), result
             ]

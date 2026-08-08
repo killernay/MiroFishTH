@@ -376,6 +376,53 @@ def generate_report():
         }), 500
 
 
+@report_bp.route('/resume', methods=['POST'])
+def resume_report_generation():
+    """Resume a partial report from its last saved section."""
+    try:
+        data = request.get_json() or {}
+        report_id = data.get("report_id")
+        if not report_id:
+            return jsonify({"success": False, "error": "report_id is required"}), 400
+        report = ReportManager.get_report(report_id)
+        if not report or report.status == ReportStatus.COMPLETED:
+            return jsonify({"success": False, "error": "A resumable report checkpoint was not found"}), 409
+
+        task_manager = TaskManager()
+        task_id = task_manager.create_task(
+            task_type="report_resume",
+            metadata={"simulation_id": report.simulation_id, "report_id": report_id},
+        )
+        register_graph_reader(report.graph_id, report_id)
+
+        def run_resume():
+            try:
+                task_manager.update_task(task_id, status=TaskStatus.PROCESSING, progress=55)
+                agent = ReportAgent(
+                    graph_id=report.graph_id,
+                    simulation_id=report.simulation_id,
+                    simulation_requirement=report.simulation_requirement,
+                )
+                resumed = agent.resume_report(report_id)
+                if resumed.status == ReportStatus.COMPLETED:
+                    task_manager.complete_task(task_id, {"report_id": report_id, "status": "completed"})
+                else:
+                    task_manager.fail_task(task_id, resumed.error or "Report resume failed")
+            except Exception as exc:
+                task_manager.fail_task(task_id, str(exc))
+            finally:
+                unregister_graph_reader(report.graph_id, report_id)
+
+        threading.Thread(target=run_resume, daemon=True).start()
+        return jsonify({
+            "success": True,
+            "data": {"report_id": report_id, "task_id": task_id, "status": "resuming"},
+        })
+    except Exception as exc:
+        logger.error("Failed to resume report: %s", exc)
+        return jsonify({"success": False, "error": str(exc)}), 500
+
+
 @report_bp.route('/generate/status', methods=['POST'])
 def get_generate_status():
     """

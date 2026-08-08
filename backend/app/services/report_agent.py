@@ -1958,6 +1958,97 @@ class ReportAgent:
             
             return report
     
+    def resume_report(
+        self,
+        report_id: str,
+        progress_callback: Optional[Callable[[str, int, str], None]] = None,
+    ) -> Report:
+        """Continue a report from the last saved section checkpoint."""
+        existing = ReportManager.get_report(report_id)
+        outline_path = ReportManager._get_outline_path(report_id)
+        if existing is None or not os.path.exists(outline_path):
+            raise ValueError(f"Report checkpoint not found: {report_id}")
+
+        with open(outline_path, "r", encoding="utf-8") as handle:
+            outline_data = json.load(handle)
+        outline = ReportOutline(
+            title=outline_data["title"],
+            summary=outline_data["summary"],
+            sections=[
+                ReportSection(title=item["title"], content=item.get("content", ""))
+                for item in outline_data.get("sections", [])
+            ],
+        )
+        saved = ReportManager.get_generated_sections(report_id)
+        saved_by_index = {item["section_index"]: item for item in saved}
+        completed_count = 0
+        while completed_count + 1 in saved_by_index:
+            completed_count += 1
+
+        report = existing
+        report.outline = outline
+        report.status = ReportStatus.GENERATING
+        self.report_logger = ReportLogger(report_id)
+        self.console_logger = ReportConsoleLogger(report_id)
+        generated_sections = [
+            saved_by_index[index]["content"]
+            for index in range(1, completed_count + 1)
+        ]
+        completed_titles = [
+            outline.sections[index - 1].title
+            for index in range(1, completed_count + 1)
+        ]
+        total_sections = len(outline.sections)
+
+        try:
+            for index in range(completed_count, total_sections):
+                section = outline.sections[index]
+                section_num = index + 1
+                base_progress = 20 + int((index / total_sections) * 70)
+                ReportManager.update_progress(
+                    report_id, "generating", base_progress,
+                    t("progress.generatingSection", title=section.title,
+                      current=section_num, total=total_sections),
+                    current_section=section.title,
+                    completed_sections=completed_titles,
+                )
+                if progress_callback:
+                    progress_callback("generating", base_progress, section.title)
+                content = self._generate_section_react(
+                    section=section,
+                    outline=outline,
+                    previous_sections=generated_sections,
+                    progress_callback=None,
+                    section_index=section_num,
+                )
+                section.content = content
+                generated_sections.append(f"## {section.title}\n\n{content}")
+                ReportManager.save_section(report_id, section_num, section)
+                completed_titles.append(section.title)
+
+            report.markdown_content = ReportManager.assemble_full_report(report_id, outline)
+            report.status = ReportStatus.COMPLETED
+            report.completed_at = datetime.now().isoformat()
+            ReportManager.save_report(report)
+            ReportManager.update_progress(
+                report_id, "completed", 100, t("progress.reportComplete"),
+                completed_sections=completed_titles,
+            )
+            return report
+        except Exception as exc:
+            report.status = ReportStatus.FAILED
+            report.error = str(exc)
+            ReportManager.save_report(report)
+            ReportManager.update_progress(
+                report_id, "failed", -1, t("progress.reportFailed", error=str(exc)),
+                completed_sections=completed_titles,
+            )
+            return report
+        finally:
+            if self.console_logger:
+                self.console_logger.close()
+                self.console_logger = None
+
     def chat(
         self, 
         message: str,

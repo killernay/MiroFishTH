@@ -200,6 +200,22 @@ def test_report_chat_keeps_tagged_source_evidence_verbatim_with_an_english_label
     )
 
 
+def test_report_accepts_verified_evidence_with_markdown_quote_formatting():
+    """Markdown presentation must not make a real tool quote look unverified."""
+    set_locale("en")
+    agent = object.__new__(ReportAgent)
+    agent.llm = None
+    agent._verified_source_results = ["นี่คือหลักฐานจากผล tool จริง"]
+
+    result = agent._ensure_locale_safe_text(
+        "Finding. <source_evidence>```text\n> นี่คือหลักฐานจากผล tool จริง\n```</source_evidence>",
+        [{"role": "user", "content": "write"}],
+    )
+
+    assert "Source evidence omitted because it could not be verified." not in result
+    assert "นี่คือหลักฐานจากผล tool จริง" in result
+
+
 def test_report_chat_uses_the_thai_evidence_label_for_a_thai_run():
     class LLM:
         def __init__(self):

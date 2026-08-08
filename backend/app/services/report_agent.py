@@ -974,6 +974,31 @@ class ReportAgent:
                     )
                 raise
 
+    @staticmethod
+    def _normalise_evidence(text: str) -> str:
+        """Remove presentation-only Markdown before comparing a source quote."""
+        lines = []
+        for line in str(text).replace("\r\n", "\n").split("\n"):
+            stripped = line.strip()
+            if stripped.startswith("```"):
+                continue
+            if stripped.startswith(">"):
+                stripped = stripped[1:].lstrip()
+            lines.append(stripped)
+        return re.sub(r"\s+", " ", " ".join(lines)).strip()
+
+    def _validated_evidence_text(self, evidence: str) -> Optional[str]:
+        """Return the canonical model quote only when it matches live tool output."""
+        if not evidence:
+            return None
+        normalised = self._normalise_evidence(evidence)
+        if not normalised:
+            return None
+        for result in getattr(self, "_verified_source_results", []):
+            if evidence in result or normalised in self._normalise_evidence(result):
+                return normalised
+        return None
+
     def _validate_generated_prose(self, text: str) -> None:
         """Reject unverified tags and invalid generated prose.
 
@@ -981,7 +1006,7 @@ class ReportAgent:
         body is contained in a tool result the server retrieved for this agent.
         """
         for match in _SOURCE_EVIDENCE_PATTERN.finditer(text):
-            if not self._is_verified_source_evidence(match.group(1)):
+            if self._validated_evidence_text(match.group(1)) is None:
                 raise GeneratedContentLanguageError(t('api.reportGenerateFailed'))
         generated_prose = _SOURCE_EVIDENCE_PATTERN.sub("", text)
         validate_generated_content(generated_prose, locale=get_locale())
@@ -993,10 +1018,7 @@ class ReportAgent:
             ]
 
     def _is_verified_source_evidence(self, evidence: str) -> bool:
-        return bool(evidence) and any(
-            evidence in result
-            for result in getattr(self, "_verified_source_results", [])
-        )
+        return self._validated_evidence_text(evidence) is not None
 
     def _can_omit_unverified_source_evidence(self, text: str) -> bool:
         """Only recover when non-evidence prose already matches the run locale."""
@@ -1020,11 +1042,10 @@ class ReportAgent:
 
         return _SOURCE_EVIDENCE_PATTERN.sub(replace, text)
 
-    @staticmethod
-    def _render_source_evidence(text: str) -> str:
+    def _render_source_evidence(self, text: str) -> str:
         """Replace source markers with a localized, verbatim Markdown evidence block."""
         def render(match: re.Match[str]) -> str:
-            evidence = match.group(1)
+            evidence = self._validated_evidence_text(match.group(1)) or match.group(1)
             return f"**[{t('report.quotedSourceEvidence')}]**\n\n```text\n{evidence}\n```"
 
         return _SOURCE_EVIDENCE_PATTERN.sub(render, text)

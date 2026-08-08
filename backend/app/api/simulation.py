@@ -1516,6 +1516,23 @@ def generate_profiles():
 
 # ============== 模拟运行控制接口 ==============
 
+@simulation_bp.route('/resume-env', methods=['POST'])
+def resume_simulation_environment():
+    """Reopen OASIS for interviews without rerunning the simulation."""
+    try:
+        data = request.get_json() or {}
+        simulation_id = data.get('simulation_id')
+        if not simulation_id:
+            return jsonify({"success": False, "error": t('api.requireSimulationId')}), 400
+
+        result = SimulationRunner.resume_oasis_environment(simulation_id)
+        return jsonify({"success": True, "data": result})
+    except ValueError as exc:
+        return jsonify({"success": False, "error": str(exc)}), 400
+    except Exception as exc:
+        logger.error("Failed to resume OASIS environment: %s", exc)
+        return jsonify({"success": False, "error": str(exc)}), 500
+
 @simulation_bp.route('/start', methods=['POST'])
 def start_simulation():
     """

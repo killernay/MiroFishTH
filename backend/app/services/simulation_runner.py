@@ -1692,6 +1692,68 @@ class SimulationRunner:
         return OASISSession(sim_dir).is_alive()
 
     @classmethod
+    def resume_oasis_environment(cls, simulation_id: str) -> Dict[str, Any]:
+        """Reopen a completed run's OASIS IPC environment without replaying actions.
+
+        This is intentionally separate from ``start_simulation``: starting a
+        simulation creates a new action run and can spend LLM tokens.  Resume
+        only rebuilds the disposable OASIS runtime and leaves the persisted
+        simulation logs/graph untouched so interviews and reports can continue.
+        """
+        sim_dir = os.path.join(cls.RUN_STATE_DIR, simulation_id)
+        config_path = os.path.join(sim_dir, "simulation_config.json")
+        script_path = os.path.join(cls.SCRIPTS_DIR, "run_parallel_simulation.py")
+        if not os.path.isfile(config_path):
+            raise ValueError(f"simulation config not found: {simulation_id}")
+        if not os.path.isfile(script_path):
+            raise ValueError(f"simulation script not found: {script_path}")
+        if cls.check_env_alive(simulation_id):
+            return {"simulation_id": simulation_id, "resumed": False, "already_alive": True}
+
+        existing = cls._processes.get(simulation_id)
+        if existing is not None and existing.poll() is None:
+            raise ValueError(f"simulation environment is still starting: {simulation_id}")
+
+        log_path = os.path.join(sim_dir, "simulation.log")
+        log_file = open(log_path, "a", encoding="utf-8")
+        env = os.environ.copy()
+        env.setdefault("PYTHONUTF8", "1")
+        env.setdefault("PYTHONIOENCODING", "utf-8")
+        try:
+            with open(config_path, "r", encoding="utf-8") as handle:
+                config = json.load(handle)
+            env["MIROFISH_LOCALE"] = normalize_locale(config.get("locale", "en"))
+        except (OSError, ValueError, json.JSONDecodeError):
+            env["MIROFISH_LOCALE"] = "en"
+
+        try:
+            process = subprocess.Popen(
+                [sys.executable, script_path, "--config", config_path, "--resume-wait"],
+                cwd=sim_dir,
+                stdout=log_file,
+                stderr=subprocess.STDOUT,
+                env=env,
+                start_new_session=True,
+            )
+        except Exception:
+            log_file.close()
+            raise
+
+        cls._processes[simulation_id] = process
+        # Keep the descriptor alive for the child process. It is closed when
+        # the runner is explicitly stopped or the process exits.
+        stdout_files = getattr(cls, "_resume_stdout_files", None)
+        if stdout_files is None:
+            stdout_files = cls._resume_stdout_files = {}
+        stdout_files[simulation_id] = log_file
+        return {
+            "simulation_id": simulation_id,
+            "resumed": True,
+            "already_alive": False,
+            "process_pid": process.pid,
+        }
+
+    @classmethod
     def get_env_status_detail(cls, simulation_id: str) -> Dict[str, Any]:
         """
         获取模拟环境的详细状态信息

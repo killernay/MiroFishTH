@@ -23,8 +23,17 @@ from ..utils.logger import get_logger
 from ..utils.locale import t, get_locale, set_locale
 from ..utils.zep_lifecycle import get_graph_readers, graph_lifecycle_lock
 from ..models.project import ProjectManager
+from ..models.task import TaskManager, TaskStatus
 
 logger = get_logger('mirofish.api.simulation')
+
+
+def _has_active_report_task(simulation_id: str) -> bool:
+    return any(
+        task.get("status") == TaskStatus.PROCESSING.value
+        and task.get("metadata", {}).get("simulation_id") == simulation_id
+        for task in TaskManager().list_tasks(task_type="report_generate")
+    )
 
 
 def _get_default_platform(simulation_id: str) -> str:
@@ -442,7 +451,7 @@ def prepare_simulation():
                 "success": False,
                 "error": t('api.requireSimulationId')
             }), 400
-        
+
         manager = SimulationManager()
         state = manager.get_simulation(simulation_id)
         
@@ -2847,6 +2856,12 @@ def close_simulation_env():
                 "success": False,
                 "error": t('api.requireSimulationId')
             }), 400
+
+        if _has_active_report_task(simulation_id):
+            return jsonify({
+                "success": False,
+                "error": t("api.reportInProgressCannotClose"),
+            }), 409
         
         result = SimulationRunner.close_simulation_env(
             simulation_id=simulation_id,

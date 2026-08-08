@@ -199,6 +199,7 @@
     "allPlatformsCompleted": "All platform simulations have ended",
     "actionsCompleted": "Simulation actions complete",
     "awaitingFinishDescription": "All enabled platforms have completed. Interview agents and run surveys before generating the report. Finish only when you are done; closing OASIS is irreversible for this run.",
+    "reportInProgressCannotClose": "A report is still being generated. Finish the report before closing OASIS.",
     "finishSimulation": "Finish Simulation",
     "confirmFinishSimulation": "Close this simulation environment? Agent interviews and surveys will no longer be available for this run.",
     "finishingSimulation": "Finishing simulation…",

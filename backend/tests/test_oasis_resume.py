@@ -61,3 +61,13 @@ def test_resume_oasis_environment_does_not_spawn_when_alive(tmp_path, monkeypatc
         "resumed": False,
         "already_alive": True,
     }
+
+
+def test_check_env_alive_rejects_stale_marker_without_runner_process(tmp_path, monkeypatch):
+    simulation_id = "sim_stale"
+    sim_dir = tmp_path / simulation_id
+    sim_dir.mkdir()
+    (sim_dir / "env_status.json").write_text('{"status":"alive"}', encoding="utf-8")
+    monkeypatch.setattr(SimulationRunner, "RUN_STATE_DIR", str(tmp_path))
+    SimulationRunner._processes.pop(simulation_id, None)
+    assert SimulationRunner.check_env_alive(simulation_id) is False

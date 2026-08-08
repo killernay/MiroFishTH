@@ -1689,6 +1689,13 @@ class SimulationRunner:
         if not os.path.exists(sim_dir):
             return False
 
+        # env_status.json is persisted and can remain ``alive`` after a
+        # Docker/gunicorn restart killed the child process. Never trust that
+        # stale marker by itself: this runner must still own a live subprocess.
+        process = cls._processes.get(simulation_id)
+        if process is None or process.poll() is not None:
+            return False
+
         return OASISSession(sim_dir).is_alive()
 
     @classmethod

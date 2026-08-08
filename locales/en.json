@@ -224,6 +224,9 @@
   "step4": {
     "generatingSection": "Generating {title}...",
     "goToInteraction": "Enter Deep Interaction",
+    "cancelReport": "Cancel report",
+    "reportCancelled": "Report generation cancelled.",
+    "cancelReportFailed": "Could not cancel report: {error}",
     "waitingForReportAgent": "Waiting for Report Agent...",
     "collapse": "Collapse ▲",
     "expandAll": "Show all {count} ▼",

@@ -136,6 +136,15 @@
             </svg>
           </button>
 
+          <button
+            v-else-if="reportId && !cancelRequested"
+            class="cancel-report-btn"
+            type="button"
+            @click="cancelGeneration"
+          >
+            {{ $t('step4.cancelReport') }}
+          </button>
+
           <div class="workflow-divider"></div>
         </div>
 
@@ -394,7 +403,7 @@
 import { ref, computed, watch, onMounted, onUnmounted, nextTick, h, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { getAgentLog, getConsoleLog } from '../api/report'
+import { getAgentLog, getConsoleLog, cancelReport } from '../api/report'
 
 const router = useRouter()
 const { t } = useI18n()
@@ -414,6 +423,20 @@ const goToInteraction = () => {
   }
 }
 
+const cancelGeneration = async () => {
+  if (!props.reportId || cancelRequested.value) return
+  cancelRequested.value = true
+  try {
+    await cancelReport(props.reportId)
+    addLog(t('step4.reportCancelled'))
+    stopPolling()
+    emit('update-status', 'error')
+  } catch (error) {
+    cancelRequested.value = false
+    addLog(t('step4.cancelReportFailed', { error: error?.message || 'Unknown error' }))
+  }
+}
+
 // State
 const agentLogs = ref([])
 const consoleLogs = ref([])
@@ -426,6 +449,7 @@ const expandedContent = ref(new Set())
 const expandedLogs = ref(new Set())
 const collapsedSections = ref(new Set())
 const isComplete = ref(false)
+const cancelRequested = ref(false)
 const startTime = ref(null)
 const leftPanel = ref(null)
 const rightPanel = ref(null)
@@ -2201,6 +2225,7 @@ watch(() => props.reportId, (newId) => {
     expandedLogs.value = new Set()
     collapsedSections.value = new Set()
     isComplete.value = false
+    cancelRequested.value = false
     startTime.value = null
     
     startPolling()
@@ -3429,6 +3454,21 @@ watch(() => props.reportId, (newId) => {
   border-radius: 8px;
   cursor: pointer;
   transition: all 0.2s ease;
+}
+
+.cancel-report-btn {
+  margin: 12px 24px 0;
+  padding: 10px 14px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background: transparent;
+  color: #6b7280;
+  cursor: pointer;
+}
+
+.cancel-report-btn:hover {
+  border-color: #ef4444;
+  color: #b91c1c;
 }
 
 .next-step-btn:hover {

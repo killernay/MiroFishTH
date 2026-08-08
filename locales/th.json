@@ -230,6 +230,9 @@
   "step4": {
     "generatingSection": "กำลังสร้าง {title}...",
     "goToInteraction": "เข้าสู่การโต้ตอบเชิงลึก",
+    "cancelReport": "ยกเลิกรายงาน",
+    "reportCancelled": "ยกเลิกการสร้างรายงานแล้ว",
+    "cancelReportFailed": "ยกเลิกรายงานไม่สำเร็จ: {error}",
     "waitingForReportAgent": "กำลังรอเจ้าหน้าที่รายงาน...",
     "collapse": "ยุบ ▲",
     "expandAll": "แสดงทั้งหมด {count} ▼",

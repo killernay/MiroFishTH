@@ -27,6 +27,24 @@ from ..utils.zep_lifecycle import (
 logger = get_logger('mirofish.api.report')
 
 
+def _is_live_interview_ready(run_state, simulation_id: str) -> bool:
+    """Actions are complete while OASIS remains in command-wait mode."""
+    if not run_state or run_state.runner_status != RunnerStatus.RUNNING:
+        return False
+    if not SimulationRunner.check_env_alive(simulation_id):
+        return False
+    enabled_platforms = []
+    for prefix in ("twitter", "reddit"):
+        enabled = bool(
+            getattr(run_state, f"{prefix}_completed", False)
+            or getattr(run_state, f"{prefix}_running", False)
+            or getattr(run_state, f"{prefix}_actions_count", 0)
+        )
+        if enabled:
+            enabled_platforms.append(getattr(run_state, f"{prefix}_completed", False))
+    return bool(enabled_platforms) and all(enabled_platforms)
+
+
 # ============== 报告生成接口 ==============
 
 @report_bp.route('/generate', methods=['POST'])
@@ -83,6 +101,7 @@ def generate_report():
 
         run_state = SimulationRunner.get_run_state(simulation_id)
         updater = ZepGraphMemoryManager.get_updater(simulation_id)
+        live_interview_ready = _is_live_interview_ready(run_state, simulation_id)
         active_statuses = {
             RunnerStatus.STARTING,
             RunnerStatus.RUNNING,
@@ -90,7 +109,9 @@ def generate_report():
             RunnerStatus.STOPPING,
         }
         if updater is not None or (
-            run_state is not None and run_state.runner_status in active_statuses
+            run_state is not None
+            and run_state.runner_status in active_statuses
+            and not live_interview_ready
         ):
             return jsonify({
                 "success": False,
@@ -106,7 +127,10 @@ def generate_report():
         }
         if (
             run_state is None
-            or run_state.runner_status not in successful_terminal_statuses
+            or (
+                run_state.runner_status not in successful_terminal_statuses
+                and not live_interview_ready
+            )
         ):
             return jsonify({
                 "success": False,
@@ -169,6 +193,9 @@ def generate_report():
             )
             refreshed_run_state = SimulationRunner.get_run_state(simulation_id)
             refreshed_updater = ZepGraphMemoryManager.get_updater(simulation_id)
+            refreshed_live_interview_ready = _is_live_interview_ready(
+                refreshed_run_state, simulation_id
+            )
             if (
                 refreshed_state is None
                 or refreshed_project is None
@@ -186,6 +213,7 @@ def generate_report():
             if refreshed_updater is not None or (
                 refreshed_run_state is not None
                 and refreshed_run_state.runner_status in active_statuses
+                and not refreshed_live_interview_ready
             ):
                 return jsonify({
                     "success": False,
@@ -197,8 +225,10 @@ def generate_report():
                 }), 409
             if (
                 refreshed_run_state is None
-                or refreshed_run_state.runner_status
-                not in successful_terminal_statuses
+                or (
+                    refreshed_run_state.runner_status not in successful_terminal_statuses
+                    and not refreshed_live_interview_ready
+                )
             ):
                 return jsonify({
                     "success": False,
@@ -852,8 +882,12 @@ def check_report_status(simulation_id: str):
         report_status = report.status.value if report else None
         report_id = report.report_id if report else None
         
-        # 只有报告完成后才解锁interview
-        interview_unlocked = has_report and report.status == ReportStatus.COMPLETED
+        # Interview is available before reporting while the live OASIS command
+        # channel is still available; completed reports remain interviewable.
+        run_state = SimulationRunner.get_run_state(simulation_id)
+        interview_unlocked = (
+            has_report and report.status == ReportStatus.COMPLETED
+        ) or _is_live_interview_ready(run_state, simulation_id)
         
         return jsonify({
             "success": True,

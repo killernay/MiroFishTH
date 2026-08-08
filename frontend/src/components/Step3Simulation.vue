@@ -589,6 +589,9 @@ const fetchRunStatus = async () => {
           void handleNextStep()
         }
       } else if (state === 'awaiting_finish') {
+        // Actions are complete, but OASIS is intentionally still alive for
+        // Interview/Survey and live report generation.
+        phase.value = 2
         emit('update-status', 'awaiting_finish')
       } else if (state === 'finishing') {
         emit('update-status', 'finishing')
@@ -766,7 +769,7 @@ const initOrResumeSimulation = async () => {
       }
 
       if (['running', 'awaiting_finish', 'finishing'].includes(existingState)) {
-        phase.value = 1
+        phase.value = existingState === 'awaiting_finish' ? 2 : 1
         emit('update-status', existingState === 'running' ? 'processing' : existingState)
         addLog(`Resuming existing simulation monitor (${existing.runner_status}).`)
         startStatusPolling()

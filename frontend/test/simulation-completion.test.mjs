@@ -87,6 +87,16 @@ test('starts report generation when simulation finalization reaches a terminal s
   assert.match(component, /isCompleted[\s\S]*phase\.value = 2[\s\S]*handleNextStep\(\)/)
 })
 
+test('keeps the report action available before closing OASIS', async () => {
+  const component = await readFile(
+    new URL('frontend/src/components/Step3Simulation.vue', repoRoot),
+    'utf8'
+  )
+
+  assert.match(component, /state === 'awaiting_finish'[\s\S]*phase\.value = 2/)
+  assert.match(component, /existingState === 'awaiting_finish' \? 2 : 1/)
+})
+
 test('starts report generation when reopening an already completed run', async () => {
   const component = await readFile(
     new URL('frontend/src/components/Step3Simulation.vue', repoRoot),

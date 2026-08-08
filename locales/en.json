@@ -198,7 +198,7 @@
     "stopException": "Stop error: {error}",
     "allPlatformsCompleted": "All platform simulations have ended",
     "actionsCompleted": "Simulation actions complete",
-    "awaitingFinishDescription": "All enabled platforms have completed. You can interview agents, or finish the simulation to unlock report generation.",
+    "awaitingFinishDescription": "All enabled platforms have completed. Interview agents and run surveys before generating the report. Finish only when you are done; closing OASIS is irreversible for this run.",
     "finishSimulation": "Finish Simulation",
     "confirmFinishSimulation": "Close this simulation environment? Agent interviews and surveys will no longer be available for this run.",
     "finishingSimulation": "Finishing simulation…",

@@ -15,6 +15,23 @@ from app.utils.zep_lifecycle import (
 )
 
 
+def test_live_completed_run_is_ready_for_interview_report(monkeypatch):
+    run_state = SimpleNamespace(
+        runner_status=RunnerStatus.RUNNING,
+        twitter_completed=True,
+        reddit_completed=True,
+        twitter_running=False,
+        reddit_running=False,
+    )
+    monkeypatch.setattr(
+        report_api.SimulationRunner,
+        "check_env_alive",
+        classmethod(lambda _cls, _simulation_id: True),
+    )
+
+    assert report_api._is_live_interview_ready(run_state, "sim-1") is True
+
+
 def _json_result(result):
     if isinstance(result, tuple):
         response, status = result

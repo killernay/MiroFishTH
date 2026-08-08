@@ -697,6 +697,24 @@ def delete_report(report_id: str):
         }), 500
 
 
+@report_bp.route('/<report_id>/cancel', methods=['POST'])
+def cancel_report_generation(report_id: str):
+    """Cancel a pending/planning/generating report without touching its simulation."""
+    try:
+        report = ReportManager.cancel_report(report_id)
+        if report is None:
+            return jsonify({"success": False, "error": "Report not found"}), 404
+        if report.status == ReportStatus.COMPLETED:
+            return jsonify({"success": False, "error": "Completed reports cannot be cancelled"}), 409
+        return jsonify({
+            "success": True,
+            "data": {"report_id": report_id, "status": report.status.value, "cancelled": True},
+        })
+    except Exception as exc:
+        logger.error("Failed to cancel report %s: %s", report_id, exc)
+        return jsonify({"success": False, "error": str(exc)}), 500
+
+
 # ============== Report Agent对话接口 ==============
 
 @report_bp.route('/chat', methods=['POST'])

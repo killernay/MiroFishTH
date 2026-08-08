@@ -46,6 +46,11 @@ export const checkReportStatus = (simulationId) => {
   return service.get(`/api/report/check/${simulationId}`)
 }
 
+/** Cooperatively cancel a pending report without stopping the simulation. */
+export const cancelReport = (reportId) => {
+  return service.post(`/api/report/${reportId}/cancel`)
+}
+
 /**
  * 与 Report Agent 对话
  * @param {Object} data - { simulation_id, message, chat_history? }

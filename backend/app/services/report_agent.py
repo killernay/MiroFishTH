@@ -407,6 +407,10 @@ class ReportStatus(str, Enum):
     FAILED = "failed"
 
 
+class ReportCancelledError(RuntimeError):
+    """Raised when a report worker observes a user cancellation request."""
+
+
 @dataclass
 class ReportSection:
     """报告章节"""
@@ -941,8 +945,14 @@ class ReportAgent:
         self.report_logger: Optional[ReportLogger] = None
         # 控制台日志记录器（在 generate_report 中初始化）
         self.console_logger: Optional[ReportConsoleLogger] = None
+        self._active_report_id: Optional[str] = None
         
         logger.info(t('report.agentInitDone', graphId=graph_id, simulationId=simulation_id))
+
+    def _raise_if_cancelled(self) -> None:
+        """Stop cooperatively before the next expensive model/tool operation."""
+        if self._active_report_id and ReportManager.is_cancel_requested(self._active_report_id):
+            raise ReportCancelledError("Report generation cancelled by user")
 
     def _ensure_locale_safe_text(self, text: str, messages: List[Dict[str, str]]) -> str:
         """Validate generated prose while preserving verified source evidence."""
@@ -1755,6 +1765,7 @@ class ReportAgent:
         # 如果没有传入 report_id，则自动生成
         if not report_id:
             report_id = f"report_{uuid.uuid4().hex[:12]}"
+        self._active_report_id = report_id
         start_time = datetime.now()
         
         report = Report(
@@ -1770,6 +1781,7 @@ class ReportAgent:
         completed_section_titles = []
         
         try:
+            self._raise_if_cancelled()
             # 初始化：创建报告文件夹并保存初始状态
             ReportManager._ensure_report_folder(report_id)
             
@@ -1829,6 +1841,7 @@ class ReportAgent:
             generated_sections = []  # 保存内容用于上下文
             
             for i, section in enumerate(outline.sections):
+                self._raise_if_cancelled()
                 section_num = i + 1
                 base_progress = 20 + int((i / total_sections) * 70)
                 
@@ -2231,6 +2244,39 @@ class ReportManager:
     def _get_progress_path(cls, report_id: str) -> str:
         """获取进度文件路径"""
         return os.path.join(cls._get_report_folder(report_id), "progress.json")
+
+    @classmethod
+    def _get_cancel_path(cls, report_id: str) -> str:
+        return os.path.join(cls._get_report_folder(report_id), "cancel.json")
+
+    @classmethod
+    def is_cancel_requested(cls, report_id: str) -> bool:
+        return os.path.exists(cls._get_cancel_path(report_id))
+
+    @classmethod
+    def cancel_report(cls, report_id: str) -> Optional[Report]:
+        """Request cooperative cancellation and persist a terminal failed state."""
+        report = cls.get_report(report_id)
+        if report is None:
+            return None
+        if report.status == ReportStatus.COMPLETED:
+            return report
+        cls._ensure_report_folder(report_id)
+        with open(cls._get_cancel_path(report_id), 'w', encoding='utf-8') as handle:
+            json.dump({"requested_at": datetime.now().isoformat()}, handle)
+        report.status = ReportStatus.FAILED
+        report.error = "Report generation cancelled by user"
+        cls.save_report(report)
+        progress = cls.get_progress(report_id) or {}
+        cls.update_progress(
+            report_id,
+            "failed",
+            progress.get("progress", -1),
+            "Report generation cancelled",
+            current_section=None,
+            completed_sections=progress.get("completed_sections", []),
+        )
+        return report
     
     @classmethod
     def _get_section_path(cls, report_id: str, section_index: int) -> str:

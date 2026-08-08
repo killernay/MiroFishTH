@@ -17,6 +17,26 @@ def test_validator_rejects_chinese_in_generated_content():
         validate_generated_content({"summary": "这是生成内容"}, locale="en")
 
 
+@pytest.mark.parametrize(
+    "generated_text",
+    [
+        "𠀀",  # CJK Unified Ideographs Extension B
+        "これは日本語です",  # Hiragana and Han
+        "한국어 생성 내용",  # Hangul
+        "Сгенерированный текст",  # Cyrillic
+    ],
+)
+def test_validator_rejects_non_english_thai_generated_scripts(generated_text):
+    with pytest.raises(GeneratedContentLanguageError, match="selected language"):
+        validate_generated_content({"summary": generated_text}, locale="en")
+
+
+def test_validator_preserves_normal_punctuation_numbers_and_thai():
+    content = {"summary": "รุ่น 2.0 — ราคา 1,250 บาท (50%)!"}
+
+    assert validate_generated_content(content, locale="th") is content
+
+
 def test_validator_preserves_chinese_quoted_source_evidence():
     content = {
         "summary": "English generated summary",
@@ -90,6 +110,32 @@ def test_persona_generator_retries_once_with_locale_correction(monkeypatch):
     assert profile["bio"] == "English bio"
     assert len(messages) == 2
     assert "Regenerate all generated natural-language fields in English" in messages[1][0]["content"]
+
+
+def test_persona_generator_uses_safe_fallback_for_missing_generated_fields(monkeypatch):
+    class Response:
+        class Choice:
+            finish_reason = "stop"
+
+        choices = [Choice()]
+
+    monkeypatch.setattr(profile_module, "create_chat_completion", lambda *_args, **_kwargs: Response())
+    monkeypatch.setattr(
+        profile_module, "extract_chat_completion_text", lambda _response: '{"bio": "", "persona": ""}'
+    )
+    set_locale("en")
+    generator = object.__new__(OasisProfileGenerator)
+    generator.client = object()
+    generator.model_name = "test"
+    source_summary = "Raw source summary: 这是原始摘要"
+
+    profile = generator._generate_profile_with_llm(
+        entity_name="Example", entity_type="Person", entity_summary=source_summary,
+        entity_attributes={}, context="",
+    )
+
+    assert profile["bio"] == "Social discussion participant."
+    assert profile["persona"] == "This account participates in social discussions in its assigned role."
 
 
 def test_simulation_config_generation_retries_language_violation_once():

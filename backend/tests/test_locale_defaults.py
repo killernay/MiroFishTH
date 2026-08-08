@@ -38,6 +38,6 @@ def test_persona_fallbacks_follow_the_selected_output_language():
 
     set_locale("en")
     assert OasisProfileGenerator._fallback_persona("Ada", "researcher") == (
-        "Ada is a researcher participating in social discussions."
+        "This account participates in social discussions in its assigned role."
     )
     assert OasisProfileGenerator._default_country() == "Thailand"

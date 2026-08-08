@@ -250,10 +250,16 @@ class OasisProfileGenerator:
         return "ประเทศไทย" if get_locale() == "th" else "Thailand"
 
     @staticmethod
-    def _fallback_persona(entity_name: str, entity_type: str) -> str:
+    def _fallback_bio() -> str:
         if get_locale() == "th":
-            return f"{entity_name} เป็น {entity_type} ที่มีส่วนร่วมในการสนทนาทางสังคม"
-        return f"{entity_name} is a {entity_type} participating in social discussions."
+            return "บัญชีผู้เข้าร่วมการสนทนาทางสังคม"
+        return "Social discussion participant."
+
+    @staticmethod
+    def _fallback_persona(_entity_name: str = "", _entity_type: str = "") -> str:
+        if get_locale() == "th":
+            return "บัญชีนี้เป็นผู้เข้าร่วมการสนทนาทางสังคมตามบทบาทที่กำหนดไว้"
+        return "This account participates in social discussions in its assigned role."
     
     def __init__(
         self, 
@@ -334,8 +340,8 @@ class OasisProfileGenerator:
             user_id=user_id,
             user_name=user_name,
             name=name,
-            bio=profile_data.get("bio", f"{entity_type}: {name}"),
-            persona=profile_data.get("persona", entity.summary or f"A {entity_type} named {name}."),
+            bio=profile_data.get("bio") or self._fallback_bio(),
+            persona=profile_data.get("persona") or self._fallback_persona(),
             karma=profile_data.get("karma", random.randint(500, 5000)),
             friend_count=profile_data.get("friend_count", random.randint(50, 500)),
             follower_count=profile_data.get("follower_count", random.randint(100, 1000)),
@@ -618,15 +624,9 @@ class OasisProfileGenerator:
 
                     # 验证必需字段
                     if "bio" not in result or not result["bio"]:
-                        result["bio"] = (
-                            entity_summary[:200]
-                            if entity_summary
-                            else f"{entity_type}: {entity_name}"
-                        )
+                        result["bio"] = self._fallback_bio()
                     if "persona" not in result or not result["persona"]:
-                        result["persona"] = entity_summary or self._fallback_persona(
-                            entity_name, entity_type
-                        )
+                        result["persona"] = self._fallback_persona()
 
                     return result
                 except GeneratedContentLanguageError:
@@ -641,12 +641,16 @@ class OasisProfileGenerator:
                     result = self._try_fix_json(content, entity_name, entity_type, entity_summary)
                     if result.get("_fixed"):
                         del result["_fixed"]
+                        validate_generated_content(result, locale=get_locale())
                         return result
                     
                     last_error = je
                     
             except GeneratedContentLanguageError:
-                raise
+                if language_correction:
+                    raise
+                language_correction = locale_retry_instruction(get_locale())
+                continue
             except Exception as e:
                 logger.warning(f"LLM调用失败 (attempt {attempt+1}): {str(e)[:80]}")
                 last_error = e
@@ -728,8 +732,8 @@ class OasisProfileGenerator:
         bio_match = re.search(r'"bio"\s*:\s*"([^"]*)"', content)
         persona_match = re.search(r'"persona"\s*:\s*"([^"]*)', content)  # 可能被截断
         
-        bio = bio_match.group(1) if bio_match else (entity_summary[:200] if entity_summary else f"{entity_type}: {entity_name}")
-        persona = persona_match.group(1) if persona_match else (entity_summary or self._fallback_persona(entity_name, entity_type))
+        bio = bio_match.group(1) if bio_match else self._fallback_bio()
+        persona = persona_match.group(1) if persona_match else self._fallback_persona()
         
         # 如果提取到了有意义的内容，标记为已修复
         if bio_match or persona_match:
@@ -743,8 +747,8 @@ class OasisProfileGenerator:
         # 7. 完全失败，返回基础结构
         logger.warning(f"JSON修复失败，返回基础结构")
         return {
-            "bio": entity_summary[:200] if entity_summary else f"{entity_type}: {entity_name}",
-            "persona": entity_summary or self._fallback_persona(entity_name, entity_type)
+            "bio": self._fallback_bio(),
+            "persona": self._fallback_persona(),
         }
     
     def _get_system_prompt(
@@ -914,8 +918,8 @@ class OasisProfileGenerator:
         else:
             # 默认人设
             return {
-                "bio": entity_summary[:150] if entity_summary else f"{entity_type}: {entity_name}",
-                "persona": entity_summary or f"{entity_name} is a {entity_type.lower()} participating in social discussions.",
+                "bio": self._fallback_bio(),
+                "persona": self._fallback_persona(),
                 "age": random.randint(25, 50),
                 "gender": random.choice(["male", "female"]),
                 "mbti": random.choice(self.MBTI_TYPES),
@@ -1025,8 +1029,8 @@ class OasisProfileGenerator:
                     user_id=idx,
                     user_name=self._generate_username(entity.name),
                     name=entity.name,
-                    bio=f"{entity_type}: {entity.name}",
-                    persona=entity.summary or f"A participant in social discussions.",
+                    bio=self._fallback_bio(),
+                    persona=self._fallback_persona(),
                     source_entity_uuid=entity.uuid,
                     source_entity_type=entity_type,
                 )
@@ -1083,8 +1087,8 @@ class OasisProfileGenerator:
                         user_id=idx,
                         user_name=self._generate_username(entity.name),
                         name=entity.name,
-                        bio=f"{entity_type}: {entity.name}",
-                        persona=entity.summary or "A participant in social discussions.",
+                        bio=self._fallback_bio(),
+                        persona=self._fallback_persona(),
                         source_entity_uuid=entity.uuid,
                         source_entity_type=entity_type,
                     )

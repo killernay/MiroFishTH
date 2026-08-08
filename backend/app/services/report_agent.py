@@ -987,14 +987,6 @@ class ReportAgent:
             for result in getattr(self, "_verified_source_results", [])
         )
 
-    def _remember_report_evidence(self, report_content: str) -> None:
-        label = re.escape(t('report.quotedSourceEvidence'))
-        pattern = re.compile(
-            rf"\*\*\[{label}\]\*\*\n\n```text\n(.*?)\n```", re.DOTALL
-        )
-        for match in pattern.finditer(report_content):
-            self._remember_source_evidence(match.group(1))
-
     @staticmethod
     def _render_source_evidence(text: str) -> str:
         """Replace source markers with a localized, verbatim Markdown evidence block."""
@@ -1941,7 +1933,6 @@ class ReportAgent:
                 report_content = report.markdown_content[:15000]
                 if len(report.markdown_content) > 15000:
                     report_content += "\n\n... [报告内容已截断] ..."
-                self._remember_report_evidence(report_content)
         except Exception as e:
             logger.warning(t('report.fetchReportFailed', error=e))
         

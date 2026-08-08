@@ -1,4 +1,5 @@
 import pytest
+from types import SimpleNamespace
 
 import app.services.oasis_profile_generator as profile_module
 from app.services.generation_language import (
@@ -244,6 +245,39 @@ def test_report_retries_when_model_marks_unverified_chinese_as_source_evidence()
 
     assert result == "English report"
     assert len(agent.llm.calls) == 1
+
+
+def test_report_chat_does_not_trust_chinese_evidence_from_a_legacy_report(monkeypatch):
+    class LLM:
+        def __init__(self):
+            self.responses = iter([
+                "<source_evidence>这是旧报告中的中文</source_evidence>",
+                "English answer",
+            ])
+
+        def chat(self, **_kwargs):
+            return next(self.responses)
+
+    monkeypatch.setattr(
+        ReportManager,
+        "get_report_by_simulation",
+        lambda _simulation_id: SimpleNamespace(
+            markdown_content=(
+                "**[Quoted source evidence]**\n\n```text\n"
+                "这是旧报告中的中文\n```"
+            )
+        ),
+    )
+    set_locale("en")
+    agent = object.__new__(ReportAgent)
+    agent.llm = LLM()
+    agent.simulation_id = "sim-test"
+    agent.simulation_requirement = "Test scenario"
+    agent.tools = {}
+
+    result = agent.chat("What happened?")
+
+    assert result["response"] == "English answer"
 
 
 def test_saved_section_preserves_markdown_like_source_evidence_verbatim(tmp_path, monkeypatch):

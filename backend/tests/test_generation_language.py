@@ -174,8 +174,14 @@ def test_report_text_retries_once_before_chinese_can_be_persisted():
 
 def test_report_chat_keeps_tagged_source_evidence_verbatim_with_an_english_label():
     class LLM:
+        def __init__(self):
+            self.responses = iter([
+                '<tool_call>{"name":"quick_search","parameters":{"query":"source"}}</tool_call>',
+                "Conclusion: stable. <source_evidence>这是原始证据</source_evidence>",
+            ])
+
         def chat(self, **_kwargs):
-            return "Conclusion: stable. <source_evidence>这是原始证据</source_evidence>"
+            return next(self.responses)
 
     set_locale("en")
     agent = object.__new__(ReportAgent)
@@ -183,6 +189,7 @@ def test_report_chat_keeps_tagged_source_evidence_verbatim_with_an_english_label
     agent.simulation_id = "sim-test"
     agent.simulation_requirement = "Test scenario"
     agent.tools = {}
+    agent._execute_tool = lambda *_args, **_kwargs: "这是原始证据"
 
     result = agent.chat("What happened?")
 
@@ -194,8 +201,14 @@ def test_report_chat_keeps_tagged_source_evidence_verbatim_with_an_english_label
 
 def test_report_chat_uses_the_thai_evidence_label_for_a_thai_run():
     class LLM:
+        def __init__(self):
+            self.responses = iter([
+                '<tool_call>{"name":"quick_search","parameters":{"query":"source"}}</tool_call>',
+                "ข้อสรุปมีเสถียรภาพ <source_evidence>这是原始证据</source_evidence>",
+            ])
+
         def chat(self, **_kwargs):
-            return "ข้อสรุปมีเสถียรภาพ <source_evidence>这是原始证据</source_evidence>"
+            return next(self.responses)
 
     set_locale("th")
     agent = object.__new__(ReportAgent)
@@ -203,11 +216,34 @@ def test_report_chat_uses_the_thai_evidence_label_for_a_thai_run():
     agent.simulation_id = "sim-test"
     agent.simulation_requirement = "สถานการณ์ทดสอบ"
     agent.tools = {}
+    agent._execute_tool = lambda *_args, **_kwargs: "这是原始证据"
 
     result = agent.chat("เกิดอะไรขึ้น?")
 
     assert "**[หลักฐานจากแหล่งข้อมูลที่อ้างอิง]**" in result["response"]
     assert "这是原始证据" in result["response"]
+
+
+def test_report_retries_when_model_marks_unverified_chinese_as_source_evidence():
+    class LLM:
+        def __init__(self):
+            self.calls = []
+
+        def chat(self, *, messages, **_kwargs):
+            self.calls.append(messages)
+            return "English report"
+
+    set_locale("en")
+    agent = object.__new__(ReportAgent)
+    agent.llm = LLM()
+
+    result = agent._ensure_locale_safe_text(
+        "<source_evidence>这是模型生成的中文</source_evidence>",
+        [{"role": "user", "content": "write"}],
+    )
+
+    assert result == "English report"
+    assert len(agent.llm.calls) == 1
 
 
 def test_saved_section_preserves_markdown_like_source_evidence_verbatim(tmp_path, monkeypatch):

@@ -931,6 +931,8 @@ class ReportAgent:
         
         # 工具定义
         self.tools = self._define_tools()
+        # Only server-retrieved tool output can be emitted as quoted evidence.
+        self._verified_source_results: List[str] = []
         
         # 日志记录器（在 generate_report 中初始化）
         self.report_logger: Optional[ReportLogger] = None
@@ -940,7 +942,7 @@ class ReportAgent:
         logger.info(t('report.agentInitDone', graphId=graph_id, simulationId=simulation_id))
 
     def _ensure_locale_safe_text(self, text: str, messages: List[Dict[str, str]]) -> str:
-        """Validate generated prose while preserving explicitly marked source evidence."""
+        """Validate generated prose while preserving verified source evidence."""
         try:
             self._validate_generated_prose(text)
             return self._render_source_evidence(text)
@@ -961,11 +963,37 @@ class ReportAgent:
             self._validate_generated_prose(corrected)
             return self._render_source_evidence(corrected)
 
-    @staticmethod
-    def _validate_generated_prose(text: str) -> None:
-        """Reject an invalid generated field without treating tagged evidence as prose."""
+    def _validate_generated_prose(self, text: str) -> None:
+        """Reject unverified tags and invalid generated prose.
+
+        Source tags are model output, so they are accepted only when their exact
+        body is contained in a tool result the server retrieved for this agent.
+        """
+        for match in _SOURCE_EVIDENCE_PATTERN.finditer(text):
+            if not self._is_verified_source_evidence(match.group(1)):
+                raise GeneratedContentLanguageError(t('api.reportGenerateFailed'))
         generated_prose = _SOURCE_EVIDENCE_PATTERN.sub("", text)
         validate_generated_content(generated_prose, locale=get_locale())
+
+    def _remember_source_evidence(self, result: str) -> None:
+        if result:
+            self._verified_source_results = [
+                *getattr(self, "_verified_source_results", []), result
+            ]
+
+    def _is_verified_source_evidence(self, evidence: str) -> bool:
+        return bool(evidence) and any(
+            evidence in result
+            for result in getattr(self, "_verified_source_results", [])
+        )
+
+    def _remember_report_evidence(self, report_content: str) -> None:
+        label = re.escape(t('report.quotedSourceEvidence'))
+        pattern = re.compile(
+            rf"\*\*\[{label}\]\*\*\n\n```text\n(.*?)\n```", re.DOTALL
+        )
+        for match in pattern.finditer(report_content):
+            self._remember_source_evidence(match.group(1))
 
     @staticmethod
     def _render_source_evidence(text: str) -> str:
@@ -1547,6 +1575,7 @@ class ReportAgent:
                     call.get("parameters", {}),
                     report_context=report_context
                 )
+                self._remember_source_evidence(result)
 
                 if self.report_logger:
                     self.report_logger.log_tool_result(
@@ -1912,6 +1941,7 @@ class ReportAgent:
                 report_content = report.markdown_content[:15000]
                 if len(report.markdown_content) > 15000:
                     report_content += "\n\n... [报告内容已截断] ..."
+                self._remember_report_evidence(report_content)
         except Exception as e:
             logger.warning(t('report.fetchReportFailed', error=e))
         
@@ -1969,6 +1999,7 @@ class ReportAgent:
                 if len(tool_calls_made) >= self.MAX_TOOL_CALLS_PER_CHAT:
                     break
                 result = self._execute_tool(call["name"], call.get("parameters", {}))
+                self._remember_source_evidence(result)
                 tool_results.append({
                     "tool": call["name"],
                     "result": result[:1500]  # 限制结果长度

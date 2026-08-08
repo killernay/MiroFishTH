@@ -619,8 +619,8 @@ const parseInsightForge = (text) => {
       const entityBlocks = entityText.split(/\n(?=- \*\*)/).filter(b => b.trim().startsWith('- **'))
       result.entities = entityBlocks.map(block => {
         const nameMatch = block.match(/^-\s*\*\*(.+?)\*\*\s*\((.+?)\)/)
-        const summaryMatch = block.match(/摘要:\s*"?(.+?)"?(?:\n|$)/)
-        const relatedMatch = block.match(/相关事实:\s*(\d+)/)
+        const summaryMatch = block.match(/(?:Summary|สรุป):\s*"?(.+?)"?(?:\n|$)/i)
+        const relatedMatch = block.match(/(?:Related facts|ข้อเท็จจริงที่เกี่ยวข้อง):\s*(\d+)/i)
         return {
           name: nameMatch ? nameMatch[1].trim() : '',
           type: nameMatch ? nameMatch[2].trim() : '',

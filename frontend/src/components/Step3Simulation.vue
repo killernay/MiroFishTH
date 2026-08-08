@@ -467,7 +467,7 @@ const doStartSimulation = async () => {
       startStatusPolling()
       startDetailPolling()
     } else {
-      startError.value = res.error || '启动失败'
+      startError.value = res.error || t('log.startFailed', { error: t('common.unknownError') })
       addLog(t('log.startFailed', { error: res.error || t('common.unknownError') }))
       emit('update-status', 'error')
     }
@@ -611,7 +611,7 @@ const fetchRunStatus = async () => {
       }
     }
   } catch (err) {
-    console.warn('获取运行状态失败:', err)
+    console.warn('Failed to fetch run status:', err)
   }
 }
 

@@ -220,7 +220,7 @@ const checkAndStopRunningSimulation = async () => {
     }
   } catch (err) {
     // 检查环境状态失败不影响后续流程
-    console.warn('检查模拟状态失败:', err)
+    console.warn('Failed to check simulation status:', err)
   }
 }
 
@@ -436,4 +436,3 @@ onMounted(async () => {
   border-right: 1px solid #EAEAEA;
 }
 </style>
-

@@ -300,6 +300,10 @@
     "noResponse": "No response",
     "requestFailed": "Request failed",
     "selectAgentFirst": "Please select a simulated individual first"
+    ,"chatHistoryUser": "User"
+    ,"chatHistoryAssistant": "Assistant"
+    ,"chatHistoryIntro": "Here is our previous conversation:"
+    ,"chatHistoryNewQuestion": "My new question is: {message}"
   },
   "graph": {
     "panelTitle": "Graph Relationship Visualization",

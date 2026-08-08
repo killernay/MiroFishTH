@@ -26,7 +26,13 @@ def _ensure_utf8_stdout():
 
 # 日志目录
 LOG_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'logs')
-_HAN_PATTERN = re.compile(r'[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]+')
+# System logs may only contain English/Thai.  Redact all CJK scripts at the
+# logging boundary (including third-party OASIS messages), while preserving
+# the original value in source/evidence stores.
+_HAN_PATTERN = re.compile(
+    r'[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff'
+    r'\uac00-\ud7af\u1100-\u11ff\u3130-\u318f\ua960-\ua97f\uac00-\ud7ff]+'
+)
 
 
 def redact_han_text(value: str) -> str:

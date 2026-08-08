@@ -72,6 +72,15 @@ def _get_default_platform(simulation_id: str) -> str:
     return "reddit"
 
 
+def _pin_run_locale(simulation_id: str):
+    """Use the immutable run locale for every interview request."""
+    state = SimulationManager()._load_simulation_state(simulation_id)
+    locale = state.get("locale") if isinstance(state, dict) else getattr(state, "locale", None)
+    if locale:
+        set_locale(locale, override_request=True)
+    return state
+
+
 # Interview prompt 优化前缀
 # 添加此前缀可以避免Agent调用工具，直接用文本回复
 INTERVIEW_PROMPT_PREFIX = {
@@ -469,6 +478,8 @@ def prepare_simulation():
                 "success": False,
                 "error": t('api.requireSimulationId')
             }), 400
+
+        _pin_run_locale(simulation_id)
 
         manager = SimulationManager()
         state = manager.get_simulation(simulation_id)
@@ -2412,7 +2423,9 @@ def interview_agent():
                 "success": False,
                 "error": t('api.requireSimulationId')
             }), 400
-        
+
+        _pin_run_locale(simulation_id)
+
         if agent_id is None:
             return jsonify({
                 "success": False,
@@ -2558,6 +2571,8 @@ def interview_agents_batch():
                 "error": t('api.requireSimulationId')
             }), 400
 
+        _pin_run_locale(simulation_id)
+
         if not interviews or not isinstance(interviews, list):
             return jsonify({
                 "success": False,
@@ -2611,6 +2626,19 @@ def interview_agents_batch():
             platform=platform,
             timeout=timeout
         )
+
+        # Batch OASIS responses are external generated content. Do not let a
+        # foreign-language response leak into the UI/report; mark that item
+        # unavailable in the immutable run locale instead.
+        result_items = (result.get("result") or {}).get("results") if isinstance(result, dict) else None
+        if isinstance(result_items, dict):
+            for item in result_items.values():
+                if not isinstance(item, dict) or not item.get("response"):
+                    continue
+                try:
+                    validate_generated_content(item["response"], locale=get_locale())
+                except GeneratedContentLanguageError:
+                    item["response"] = t('api.interviewLanguageMismatch')
 
         return jsonify({
             "success": result.get("success", False),
@@ -2684,6 +2712,8 @@ def interview_all_agents():
                 "success": False,
                 "error": t('api.requireSimulationId')
             }), 400
+
+        _pin_run_locale(simulation_id)
 
         if not prompt:
             return jsonify({

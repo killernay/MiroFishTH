@@ -119,7 +119,8 @@ class UnicodeFormatter(logging.Formatter):
             except (ValueError, OverflowError):
                 return match.group(0)
         
-        return self.UNICODE_ESCAPE_PATTERN.sub(replace_unicode, result)
+        result = self.UNICODE_ESCAPE_PATTERN.sub(replace_unicode, result)
+        return re.sub(r'[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff\uac00-\ud7af]+', '[source text]', result)
 
 
 class MaxTokensWarningFilter(logging.Filter):

@@ -306,6 +306,10 @@
     "noResponse": "ไม่มีการตอบสนอง",
     "requestFailed": "คำขอล้มเหลว",
     "selectAgentFirst": "โปรดเลือกบุคคลจำลองก่อน"
+    ,"chatHistoryUser": "ผู้ใช้"
+    ,"chatHistoryAssistant": "ผู้ช่วย"
+    ,"chatHistoryIntro": "นี่คือบทสนทนาก่อนหน้านี้:"
+    ,"chatHistoryNewQuestion": "คำถามใหม่ของฉันคือ: {message}"
   },
   "graph": {
     "panelTitle": "การแสดงความสัมพันธ์กราฟ",

@@ -71,6 +71,7 @@ import json
 import logging
 import multiprocessing
 import random
+import re
 import signal
 import sqlite3
 import warnings
@@ -154,7 +155,8 @@ def localize_system_output(value):
 
 
 def _redact_unmapped_han(value):
-    return ''.join('[source text]' if '\u4e00' <= char <= '\u9fff' else char for char in value)
+    # Script stdout is system output; never expose CJK from OASIS or profiles.
+    return re.sub(r'[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff\uac00-\ud7af]+', '[source text]', value)
 
 
 def print(*values, **kwargs):

@@ -402,6 +402,7 @@
     "invalidInterviewPlatform": "แพลตฟอร์มต้องเป็น 'twitter' หรือ 'reddit'",
     "envNotRunning": "สภาพแวดล้อมการจำลองไม่ทำงานหรือปิด ตรวจสอบให้แน่ใจว่าการจำลองเสร็จสมบูรณ์และอยู่ในโหมดรอคำสั่ง",
     "interviewTimeout": "หมดเวลาการตอบกลับการสัมภาษณ์: {error}",
+    "interviewLanguageMismatch": "คำตอบของเอเจนต์ไม่ตรงกับภาษาที่เลือกหลังจากลองใหม่หนึ่งครั้ง",
     "requireInterviews": "กรุณาให้สัมภาษณ์ (รายการสัมภาษณ์)",
     "interviewListMissingAgentId": "รายการสัมภาษณ์ {index} ไม่มี agent_id",
     "interviewListMissingPrompt": "รายการสัมภาษณ์ {index} ไม่มีข้อความแจ้ง",

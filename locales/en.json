@@ -396,6 +396,7 @@
     "invalidInterviewPlatform": "Platform must be either 'twitter' or 'reddit'",
     "envNotRunning": "Simulation environment not running or closed. Ensure simulation is complete and in command-wait mode.",
     "interviewTimeout": "Interview response timed out: {error}",
+    "interviewLanguageMismatch": "The agent response did not match the selected language after one retry.",
     "requireInterviews": "Please provide interviews (interview list)",
     "interviewListMissingAgentId": "Interview list item {index} missing agent_id",
     "interviewListMissingPrompt": "Interview list item {index} missing prompt",

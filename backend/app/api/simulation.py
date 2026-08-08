@@ -21,6 +21,11 @@ from ..services.simulation_runner import (
 from ..services.zep_graph_memory_updater import ZepGraphMemoryManager
 from ..utils.logger import get_logger
 from ..utils.locale import t, get_locale, set_locale
+from ..services.generation_language import (
+    GeneratedContentLanguageError,
+    locale_retry_instruction,
+    validate_generated_content,
+)
 from ..utils.zep_lifecycle import get_graph_readers, graph_lifecycle_lock
 from ..models.project import ProjectManager
 from ..models.task import TaskManager, TaskStatus
@@ -69,7 +74,10 @@ def _get_default_platform(simulation_id: str) -> str:
 
 # Interview prompt 优化前缀
 # 添加此前缀可以避免Agent调用工具，直接用文本回复
-INTERVIEW_PROMPT_PREFIX = "结合你的人设、所有的过往记忆与行动，不调用任何工具直接用文本回复我："
+INTERVIEW_PROMPT_PREFIX = {
+    "en": "Using your persona, memories, and actions, answer in text only without calling tools. Reply in the selected run language: ",
+    "th": "ใช้บุคลิก ความทรงจำ และการกระทำของคุณ ตอบเป็นข้อความเท่านั้นโดยไม่เรียกใช้เครื่องมือ และตอบเป็นภาษาไทยเท่านั้น: ",
+}
 
 
 def optimize_interview_prompt(prompt: str) -> str:
@@ -85,9 +93,11 @@ def optimize_interview_prompt(prompt: str) -> str:
     if not prompt:
         return prompt
     # 避免重复添加前缀
-    if prompt.startswith(INTERVIEW_PROMPT_PREFIX):
+    locale = "th" if get_locale().startswith("th") else "en"
+    prefix = INTERVIEW_PROMPT_PREFIX[locale]
+    if prompt.startswith(tuple(INTERVIEW_PROMPT_PREFIX.values())):
         return prompt
-    return f"{INTERVIEW_PROMPT_PREFIX}{prompt}"
+    return f"{prefix}{prompt}"
 
 
 # ============== 实体读取接口 ==============
@@ -2431,7 +2441,7 @@ def interview_agent():
         
         # 优化prompt，添加前缀避免Agent调用工具
         optimized_prompt = optimize_interview_prompt(prompt)
-        
+
         result = SimulationRunner.interview_agent(
             simulation_id=simulation_id,
             agent_id=agent_id,
@@ -2439,6 +2449,30 @@ def interview_agent():
             platform=platform,
             timeout=timeout
         )
+
+        # OASIS is an external generator. Enforce the run locale at this
+        # boundary and retry once with an explicit correction instruction.
+        response_text = (result.get("result") or {}).get("response") if isinstance(result.get("result"), dict) else result.get("result")
+        try:
+            validate_generated_content(response_text or "", locale=get_locale())
+        except GeneratedContentLanguageError:
+            retry_result = SimulationRunner.interview_agent(
+                simulation_id=simulation_id,
+                agent_id=agent_id,
+                prompt=f"{optimized_prompt}\n\n{locale_retry_instruction(get_locale())}",
+                platform=platform,
+                timeout=timeout,
+            )
+            retry_text = (retry_result.get("result") or {}).get("response") if isinstance(retry_result.get("result"), dict) else retry_result.get("result")
+            try:
+                validate_generated_content(retry_text or "", locale=get_locale())
+            except GeneratedContentLanguageError:
+                return {
+                    "success": False,
+                    "agent_id": agent_id,
+                    "error": t('api.interviewLanguageMismatch'),
+                }
+            result = retry_result
 
         return jsonify({
             "success": result.get("success", False),

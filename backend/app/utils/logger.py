@@ -29,13 +29,18 @@ LOG_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__)
 _HAN_PATTERN = re.compile(r'[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]+')
 
 
+def redact_han_text(value: str) -> str:
+    """Redact untrusted CJK text at system-output boundaries."""
+    return _HAN_PATTERN.sub('[source text]', str(value))
+
+
 class LocaleSafeLogFilter(logging.Filter):
     """Keep system logs in the selected UI language without leaking raw CJK errors."""
 
     def filter(self, record: logging.LogRecord) -> bool:
         try:
             rendered = record.getMessage()
-            record.msg = _HAN_PATTERN.sub('[source text]', rendered)
+            record.msg = redact_han_text(rendered)
             record.args = ()
         except Exception:
             # Logging must never break the application.

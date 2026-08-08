@@ -14,7 +14,7 @@ from flask_cors import CORS
 
 from .config import Config
 from .utils.locale import t
-from .utils.logger import setup_logger, get_logger
+from .utils.logger import setup_logger, get_logger, redact_han_text
 
 
 def create_app(config_class=Config):
@@ -61,6 +61,20 @@ def create_app(config_class=Config):
     def log_response(response):
         logger = get_logger('mirofish.request')
         logger.debug(t("console.httpResponse", status=response.status_code))
+        if response.is_json:
+            payload = response.get_json(silent=True)
+
+            def sanitize(value, key=None):
+                if isinstance(value, dict):
+                    return {k: sanitize(v, k) for k, v in value.items()}
+                if isinstance(value, list):
+                    return [sanitize(v, key) for v in value]
+                if key in {"error", "message", "traceback"} and isinstance(value, str):
+                    return redact_han_text(value)
+                return value
+
+            if payload is not None:
+                response.set_data(app.json.dumps(sanitize(payload)))
         return response
     
     # 注册蓝图

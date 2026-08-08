@@ -25,4 +25,6 @@ test('Thai persona cards use a Thai-capable font with space for combining marks'
   assert.match(indexHtml, /family=Noto\+Sans\+Thai/)
   assert.match(component, /\.profile-realname[\s\S]*line-height:\s*1\.6/)
   assert.match(component, /\.profile-profession[\s\S]*line-height:\s*1\.6/)
+  assert.match(component, /html\[lang=['"]th['"]\][\s\S]*\.profile-bio[\s\S]*font-family:/)
+  assert.match(component, /Tahoma, ['"]Leelawadee UI['"], system-ui/)
 })

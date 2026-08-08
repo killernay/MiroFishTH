@@ -1374,7 +1374,13 @@ onUnmounted(() => {
 /* Thai combining marks need a Thai-capable face and extra vertical room. */
 :global(html[lang='th']) .profile-card,
 :global(html[lang='th']) .agent-card {
-  font-family: 'Noto Sans Thai', 'Noto Sans', system-ui, sans-serif;
+  font-family: 'Noto Sans Thai', Tahoma, 'Leelawadee UI', system-ui, sans-serif;
+}
+
+:global(html[lang='th']) .profile-realname,
+:global(html[lang='th']) .profile-profession,
+:global(html[lang='th']) .profile-bio {
+  font-family: 'Noto Sans Thai', Tahoma, 'Leelawadee UI', system-ui, sans-serif;
 }
 
 .profile-card:hover {

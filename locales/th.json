@@ -575,6 +575,12 @@
   },
   "report": {
     "taskStarted": "งานสร้างรายงานเริ่มต้นขึ้น",
+    "quotedSourceEvidence": "หลักฐานจากแหล่งข้อมูลที่อ้างอิง",
+    "defaultTitle": "รายงานการวิเคราะห์การจำลอง",
+    "defaultSummary": "การวิเคราะห์แนวโน้มและความเสี่ยงในอนาคตที่การจำลองคาดการณ์ไว้",
+    "defaultSectionScenario": "สถานการณ์และข้อค้นพบสำคัญ",
+    "defaultSectionBehavior": "การคาดการณ์พฤติกรรมของกลุ่มคน",
+    "defaultSectionRisks": "แนวโน้มและความเสี่ยง",
     "planningStart": "เริ่มต้นการวางแผนโครงร่างรายงาน",
     "fetchSimContext": "กำลังดึงข้อมูลบริบทการจำลอง",
     "planningComplete": "การวางแผนโครงร่างเสร็จสมบูรณ์",

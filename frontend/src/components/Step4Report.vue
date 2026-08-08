@@ -263,6 +263,7 @@
                   <!-- Tool Result -->
                   <template v-if="log.action === 'tool_result'">
                     <div class="result-wrapper" :class="'result-' + log.details?.tool_name">
+                      <span class="source-evidence-label">{{ $t('report.quotedSourceEvidence') }}</span>
                       <!-- Hide result-meta for tools that show stats in their own header -->
                       <div v-if="!['interview_agents', 'insight_forge', 'panorama_search', 'quick_search'].includes(log.details?.tool_name)" class="result-meta">
                         <span class="result-tool">{{ getToolDisplayName(log.details?.tool_name) }}</span>
@@ -3275,6 +3276,16 @@ watch(() => props.reportId, (newId) => {
   border-top: 1px solid var(--wf-divider);
   border-radius: 0;
   padding: 12px 0 0 0;
+}
+
+.source-evidence-label {
+  display: inline-block;
+  margin-bottom: 8px;
+  color: #4B5563;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
 }
 
 .result-meta {

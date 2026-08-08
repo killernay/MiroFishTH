@@ -569,6 +569,12 @@
   },
   "report": {
     "taskStarted": "Report generation task started",
+    "quotedSourceEvidence": "Quoted source evidence",
+    "defaultTitle": "Simulation Analysis Report",
+    "defaultSummary": "Analysis of future trends and risks predicted by the simulation.",
+    "defaultSectionScenario": "Scenario and key findings",
+    "defaultSectionBehavior": "Predicted audience behavior",
+    "defaultSectionRisks": "Outlook and risks",
     "planningStart": "Starting report outline planning",
     "fetchSimContext": "Fetching simulation context",
     "planningComplete": "Outline planning complete",

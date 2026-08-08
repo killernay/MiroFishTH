@@ -23,7 +23,17 @@ RUN npm ci \
 # 复制项目源码
 COPY . .
 
-EXPOSE 3000 5001
+# Build the browser bundle once. Caddy serves it and proxies /api to Flask,
+# keeping remote clients on one origin.
+RUN npm run build
 
-# 同时启动前后端（开发模式）
-CMD ["npm", "run", "dev"]
+COPY --from=caddy:2.8.4 /usr/bin/caddy /usr/bin/caddy
+COPY Caddyfile /etc/caddy/Caddyfile
+COPY docker/entrypoint.sh /usr/local/bin/mirofish-entrypoint
+
+RUN chmod +x /usr/local/bin/mirofish-entrypoint
+
+EXPOSE 3000
+
+# Flask remains private to the container; Caddy is the only exposed service.
+CMD ["/usr/local/bin/mirofish-entrypoint"]

@@ -168,13 +168,25 @@ npm run frontend  # 仅启动前端
 # 1. 配置环境变量（同源码部署）
 cp .env.example .env
 
-# 2. 拉取镜像并启动
-docker compose up -d
+# 2. 设置办公室主机的 Tailscale IPv4 和 Basic Auth 密钥后构建并启动
+docker compose up -d --build
 ```
 
-默认会读取根目录下的 `.env`，并映射端口 `3000（前端）/5001（后端）`
+### 办公室主机的私有远程访问
 
-> 在 `docker-compose.yml` 中已通过注释提供加速镜像地址，可按需替换
+生产容器只在办公室主机的 Tailscale IPv4 上开放一个 HTTP 端口。后端不对主机开放；浏览器和 `/api/` 共用同一个 URL，因此家庭设备不会访问自己的 localhost。
+
+1. `.env` 已被 Git 忽略。将 `TAILSCALE_IP` 设置为办公室主机执行 `tailscale ip -4` 的输出。
+2. 设置 `MIROFISH_BASIC_AUTH_USER`，并生成密码 hash 填入 `MIROFISH_BASIC_AUTH_HASH`。bcrypt hash 中的每个 `$` 都要写成 `$$`，以便 Docker Compose 原样传递。
+
+   ```bash
+   docker run --rm caddy:2.8.4 caddy hash-password --plaintext 'choose-a-password'
+   ```
+
+3. 执行 `docker compose up -d --build`，然后在 tailnet 设备访问
+   `http://<TAILSCALE_IP>:<MIROFISH_PORT>` 并输入 Basic Auth 凭据。
+
+轮换密码时生成新 hash、更新 `.env`，再执行 `docker compose up -d`。验证恢复时，创建或上传一个项目，执行 `docker compose restart`，确认项目仍可访问。`backend/uploads` 的 bind mount 会在容器重启和重建后保留应用状态。
 
 ## 📬 更多交流
 

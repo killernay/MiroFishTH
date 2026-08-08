@@ -168,17 +168,41 @@ npm run frontend  # Start frontend only
 # 1. Configure environment variables (same as source deployment)
 cp .env.example .env
 
-# 2. Pull image and start
-docker compose up -d
+# 2. Set the office host's Tailscale IPv4 address and Basic Auth secret.
+# See the private remote access section below, then build and start.
+docker compose up -d --build
 ```
 
-Reads `.env` from root directory by default, maps ports `3000 (frontend) / 5001 (backend)`
+### Private remote access from the office host
 
-> Mirror address for faster pulling is provided as comments in `docker-compose.yml`, replace if needed.
+The production container exposes one HTTP port only on the office host's
+Tailscale IPv4 address. The backend is private to the container; the browser
+and `/api/` use the same URL, so a home device never calls its own localhost.
+
+1. Keep `.env` private (it is ignored by Git), then set
+   `TAILSCALE_IP` to the output of `tailscale ip -4` on the office host.
+2. Generate an access-password hash and place it in
+   `MIROFISH_BASIC_AUTH_HASH`. Escape every `$` in the generated bcrypt hash as
+   `$$` for Docker Compose. Set `MIROFISH_BASIC_AUTH_USER` too.
+
+   ```bash
+   docker run --rm caddy:2.8.4 caddy hash-password --plaintext 'choose-a-password'
+   ```
+
+3. Start with `docker compose up -d --build`, then open
+   `http://<TAILSCALE_IP>:<MIROFISH_PORT>` from a tailnet device and enter the
+   Basic Auth credentials.
+
+To rotate access, generate a new hash, update `.env`, and run
+`docker compose up -d`. To verify restart recovery, create or upload a project,
+run `docker compose restart`, and confirm it remains available. The
+`backend/uploads` bind mount retains application state across restarts and
+rebuilds.
 
 ### Run a Local Source Build
 
-Use this option to run the code checked out locally (for example, MiroFishTH), rather than the prebuilt upstream image. It uses host ports `3410` and `5101` to avoid the default ports; choose other unused host ports if these are already taken.
+Use this option only for local development. It is intentionally not the private
+remote-access setup above.
 
 ```bash
 # Build from the current checkout. Existing .env values are used unchanged.
@@ -189,12 +213,11 @@ docker run -d \
   --name mirofishth \
   --env-file .env \
   -p 3410:3000 \
-  -p 5101:5001 \
   -v "$PWD/backend/uploads:/app/backend/uploads" \
   mirofishth:local
 ```
 
-Open `http://localhost:3410`. The frontend proxies API requests to the backend inside the container; port `5101` is only needed for direct API access.
+Open `http://localhost:3410`. The frontend proxies API requests to the backend inside the container.
 
 ## 📬 Join the Conversation
 

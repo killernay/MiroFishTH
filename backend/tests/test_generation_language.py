@@ -7,7 +7,7 @@ from app.services.generation_language import (
     validate_generated_content,
 )
 from app.services.oasis_profile_generator import OasisProfileGenerator
-from app.services.report_agent import ReportAgent
+from app.services.report_agent import ReportAgent, ReportManager, ReportSection
 from app.services.simulation_config_generator import SimulationConfigGenerator
 from app.utils.locale import set_locale
 
@@ -170,3 +170,59 @@ def test_report_text_retries_once_before_chinese_can_be_persisted():
     assert result == "English report"
     assert len(agent.llm.calls) == 1
     assert "Regenerate all generated natural-language fields in English" in agent.llm.calls[0][-1]["content"]
+
+
+def test_report_chat_keeps_tagged_source_evidence_verbatim_with_an_english_label():
+    class LLM:
+        def chat(self, **_kwargs):
+            return "Conclusion: stable. <source_evidence>这是原始证据</source_evidence>"
+
+    set_locale("en")
+    agent = object.__new__(ReportAgent)
+    agent.llm = LLM()
+    agent.simulation_id = "sim-test"
+    agent.simulation_requirement = "Test scenario"
+    agent.tools = {}
+
+    result = agent.chat("What happened?")
+
+    assert result["response"] == (
+        "Conclusion: stable. **[Quoted source evidence]**\n\n```text\n"
+        "这是原始证据\n```"
+    )
+
+
+def test_report_chat_uses_the_thai_evidence_label_for_a_thai_run():
+    class LLM:
+        def chat(self, **_kwargs):
+            return "ข้อสรุปมีเสถียรภาพ <source_evidence>这是原始证据</source_evidence>"
+
+    set_locale("th")
+    agent = object.__new__(ReportAgent)
+    agent.llm = LLM()
+    agent.simulation_id = "sim-test"
+    agent.simulation_requirement = "สถานการณ์ทดสอบ"
+    agent.tools = {}
+
+    result = agent.chat("เกิดอะไรขึ้น?")
+
+    assert "**[หลักฐานจากแหล่งข้อมูลที่อ้างอิง]**" in result["response"]
+    assert "这是原始证据" in result["response"]
+
+
+def test_saved_section_preserves_markdown_like_source_evidence_verbatim(tmp_path, monkeypatch):
+    set_locale("en")
+    monkeypatch.setattr(ReportManager, "REPORTS_DIR", str(tmp_path))
+    evidence = "## 原始标题\n这是原始证据"
+    section = ReportSection(
+        title="Findings",
+        content=(
+            "Conclusion. **[Quoted source evidence]**\n\n```text\n"
+            f"{evidence}\n```"
+        ),
+    )
+
+    path = ReportManager.save_section("report-test", 1, section)
+
+    with open(path, encoding="utf-8") as saved_section:
+        assert evidence in saved_section.read()

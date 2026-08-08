@@ -1,0 +1,16 @@
+:3000 {
+	basic_auth {
+		{env.MIROFISH_BASIC_AUTH_USER} {env.MIROFISH_BASIC_AUTH_HASH}
+	}
+
+	@api path /api/*
+	handle @api {
+		reverse_proxy 127.0.0.1:5001
+	}
+
+	handle {
+		root * /app/frontend/dist
+		try_files {path} /index.html
+		file_server
+	}
+}

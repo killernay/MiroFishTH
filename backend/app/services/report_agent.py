@@ -38,6 +38,11 @@ from .zep_tools import (
 logger = get_logger('mirofish.report_agent')
 
 
+_SOURCE_EVIDENCE_PATTERN = re.compile(
+    r"<source_evidence>(.*?)</source_evidence>", re.IGNORECASE | re.DOTALL
+)
+
+
 class ReportLogger:
     """
     Report Agent 详细日志记录器
@@ -867,6 +872,13 @@ CHAT_SYSTEM_PROMPT_TEMPLATE = """\
 
 CHAT_OBSERVATION_SUFFIX = "\n\n请简洁回答问题。"
 
+SOURCE_EVIDENCE_OUTPUT_INSTRUCTION = """\
+
+When you need to show an excerpt from retrieved source material, preserve it exactly
+inside <source_evidence> and </source_evidence> tags. Do not put generated prose,
+translations, or explanations inside those tags. All other output must follow the
+selected output language."""
+
 
 # ═══════════════════════════════════════════════════════════════
 # ReportAgent 主类
@@ -928,9 +940,10 @@ class ReportAgent:
         logger.info(t('report.agentInitDone', graphId=graph_id, simulationId=simulation_id))
 
     def _ensure_locale_safe_text(self, text: str, messages: List[Dict[str, str]]) -> str:
-        """Retry one generated report response before persisting Chinese output."""
+        """Validate generated prose while preserving explicitly marked source evidence."""
         try:
-            return validate_generated_content(text, locale=get_locale())
+            self._validate_generated_prose(text)
+            return self._render_source_evidence(text)
         except GeneratedContentLanguageError:
             retry_messages = [
                 *messages,
@@ -945,7 +958,23 @@ class ReportAgent:
             corrected = ReportAgent._strip_fake_tool_results(corrected)
             if "Final Answer:" in corrected:
                 corrected = corrected.split("Final Answer:")[-1].strip()
-            return validate_generated_content(corrected, locale=get_locale())
+            self._validate_generated_prose(corrected)
+            return self._render_source_evidence(corrected)
+
+    @staticmethod
+    def _validate_generated_prose(text: str) -> None:
+        """Reject an invalid generated field without treating tagged evidence as prose."""
+        generated_prose = _SOURCE_EVIDENCE_PATTERN.sub("", text)
+        validate_generated_content(generated_prose, locale=get_locale())
+
+    @staticmethod
+    def _render_source_evidence(text: str) -> str:
+        """Replace source markers with a localized, verbatim Markdown evidence block."""
+        def render(match: re.Match[str]) -> str:
+            evidence = match.group(1)
+            return f"**[{t('report.quotedSourceEvidence')}]**\n\n```text\n{evidence}\n```"
+
+        return _SOURCE_EVIDENCE_PATTERN.sub(render, text)
     
     def _define_tools(self) -> Dict[str, Dict[str, Any]]:
         """定义可用工具"""
@@ -1272,7 +1301,7 @@ class ReportAgent:
                 ))
             
             outline = ReportOutline(
-                title=response.get("title", "模拟分析报告"),
+                title=response.get("title", t('report.defaultTitle')),
                 summary=response.get("summary", ""),
                 sections=sections
             )
@@ -1287,12 +1316,12 @@ class ReportAgent:
             logger.error(t('report.outlinePlanFailed', error=str(e)))
             # 返回默认大纲（3个章节，作为fallback）
             return ReportOutline(
-                title="未来预测报告",
-                summary="基于模拟预测的未来趋势与风险分析",
+                title=t('report.defaultTitle'),
+                summary=t('report.defaultSummary'),
                 sections=[
-                    ReportSection(title="预测场景与核心发现"),
-                    ReportSection(title="人群行为预测分析"),
-                    ReportSection(title="趋势展望与风险提示")
+                    ReportSection(title=t('report.defaultSectionScenario')),
+                    ReportSection(title=t('report.defaultSectionBehavior')),
+                    ReportSection(title=t('report.defaultSectionRisks')),
                 ]
             )
     
@@ -1337,7 +1366,10 @@ class ReportAgent:
             section_title=section.title,
             tools_description=self._get_tools_description(),
         )
-        system_prompt = f"{system_prompt}\n\n{get_language_instruction()}"
+        system_prompt = (
+            f"{system_prompt}\n\n{get_language_instruction()}"
+            f"\n\n{SOURCE_EVIDENCE_OUTPUT_INSTRUCTION}"
+        )
 
         # 构建用户prompt - 每个已完成章节各传入最大4000字
         if previous_sections:
@@ -1888,7 +1920,10 @@ class ReportAgent:
             report_content=report_content if report_content else "（暂无报告）",
             tools_description=self._get_tools_description(),
         )
-        system_prompt = f"{system_prompt}\n\n{get_language_instruction()}"
+        system_prompt = (
+            f"{system_prompt}\n\n{get_language_instruction()}"
+            f"\n\n{SOURCE_EVIDENCE_OUTPUT_INSTRUCTION}"
+        )
 
         # 构建消息
         messages = [{"role": "system", "content": system_prompt}]
@@ -2238,9 +2273,21 @@ class ReportManager:
         lines = content.split('\n')
         cleaned_lines = []
         skip_next_empty = False
+        in_fenced_code = False
         
         for i, line in enumerate(lines):
             stripped = line.strip()
+
+            if stripped.startswith("```"):
+                in_fenced_code = not in_fenced_code
+                cleaned_lines.append(line)
+                continue
+
+            # Quoted source evidence is stored in fenced text blocks. It must
+            # remain byte-for-byte intact, even if it looks like Markdown.
+            if in_fenced_code:
+                cleaned_lines.append(line)
+                continue
             
             # 检查是否是Markdown标题行
             heading_match = re.match(r'^(#{1,6})\s+(.+)$', stripped)

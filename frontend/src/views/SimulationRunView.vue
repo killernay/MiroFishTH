@@ -452,4 +452,56 @@ onUnmounted(() => {
 .panel-wrapper.left {
   border-right: 1px solid #EAEAEA;
 }
+
+@media (max-width: 767px) {
+  .app-header {
+    height: auto;
+    min-height: 56px;
+    padding: 8px 12px;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .header-center {
+    order: 3;
+    width: 100%;
+    overflow-x: auto;
+  }
+
+  .header-right {
+    min-width: 0;
+    flex: 1 1 auto;
+    gap: 8px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+
+  .workflow-step {
+    font-size: 11px;
+    gap: 4px;
+  }
+
+  .step-divider {
+    display: none;
+  }
+
+  .content-area {
+    display: block;
+    overflow: auto;
+  }
+
+  .panel-wrapper.left,
+  .panel-wrapper.right {
+    width: 100% !important;
+    height: 100%;
+  }
+
+  .panel-wrapper.left {
+    display: none;
+  }
+
+  .panel-wrapper.right {
+    border: 0;
+  }
+}
 </style>

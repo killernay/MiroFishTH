@@ -520,10 +520,12 @@ let statusTimer = null
 let detailTimer = null
 
 const startStatusPolling = () => {
+  if (statusTimer) return
   statusTimer = setInterval(fetchRunStatus, 2000)
 }
 
 const startDetailPolling = () => {
+  if (detailTimer) return
   detailTimer = setInterval(fetchRunStatusDetail, 3000)
 }
 
@@ -585,6 +587,10 @@ const fetchRunStatus = async () => {
         emit('update-status', 'awaiting_finish')
       } else if (state === 'finishing') {
         emit('update-status', 'finishing')
+      } else if (state === 'running') {
+        phase.value = 1
+        emit('update-status', 'processing')
+        startDetailPolling()
       }
     }
   } catch (err) {
@@ -746,6 +752,7 @@ const initOrResumeSimulation = async () => {
         phase.value = 0
         emit('update-status', 'ready')
         addLog(t('log.simulationReadyToStart'))
+        startStatusPolling()
         return
       }
 
@@ -1366,5 +1373,115 @@ onUnmounted(() => {
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
   margin-right: 6px;
+}
+
+@media (max-width: 767px) {
+  .simulation-panel {
+    min-width: 0;
+  }
+
+  .control-bar {
+    height: auto;
+    min-height: 0;
+    padding: 10px 12px;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+
+  .status-group {
+    overflow-x: auto;
+    gap: 8px;
+    padding-bottom: 2px;
+  }
+
+  .platform-status {
+    min-width: 156px;
+    flex: 0 0 auto;
+  }
+
+  .actions-tooltip {
+    display: none;
+  }
+
+  .action-controls,
+  .completion-notice {
+    width: 100%;
+    max-width: none;
+  }
+
+  .action-controls {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .action-btn,
+  .action-btn.secondary {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .timeline-header {
+    padding: 10px 12px;
+    justify-content: flex-start;
+    overflow-x: auto;
+  }
+
+  .timeline-stats {
+    flex: 0 0 auto;
+  }
+
+  .timeline-feed {
+    padding: 12px;
+  }
+
+  .timeline-axis {
+    display: none;
+  }
+
+  .timeline-item.twitter,
+  .timeline-item.reddit {
+    padding: 0;
+    justify-content: stretch;
+    margin-bottom: 12px;
+  }
+
+  .timeline-marker {
+    display: none;
+  }
+
+  .timeline-card {
+    width: 100%;
+    margin: 0 !important;
+    padding: 14px;
+    box-sizing: border-box;
+  }
+
+  .card-header {
+    gap: 8px;
+  }
+
+  .agent-name,
+  .content-text,
+  .content-text.main-text,
+  .log-msg {
+    overflow-wrap: anywhere;
+  }
+
+  .system-logs {
+    padding: 12px;
+  }
+
+  .log-content {
+    height: 88px;
+  }
+
+  .log-line {
+    gap: 8px;
+  }
+
+  .log-time {
+    min-width: 64px;
+  }
 }
 </style>

@@ -68,6 +68,16 @@ test('requires an explicit start action for an idle placeholder run', async () =
   assert.match(component, /@click="doStartSimulation"/)
 })
 
+test('keeps observing an idle run and activates detail polling once it starts elsewhere', async () => {
+  const component = await readFile(
+    new URL('frontend/src/components/Step3Simulation.vue', repoRoot),
+    'utf8'
+  )
+
+  assert.match(component, /existingState === 'not_started'[\s\S]*startStatusPolling\(\)/)
+  assert.match(component, /state === 'running'[\s\S]*startDetailPolling\(\)/)
+})
+
 test('requires an explicit confirmation before closing the interview environment', async () => {
   const component = await readFile(
     new URL('frontend/src/components/Step3Simulation.vue', repoRoot),

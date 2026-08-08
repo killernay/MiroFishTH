@@ -99,7 +99,7 @@ const projectData = ref(null)
 const graphData = ref(null)
 const graphLoading = ref(false)
 const systemLogs = ref([])
-const currentStatus = ref('processing') // processing | completed | error
+const currentStatus = ref('processing') // processing | awaiting_finish | finishing | completed | error
 
 // --- Computed Layout Styles ---
 const leftPanelStyle = computed(() => {
@@ -120,9 +120,11 @@ const statusClass = computed(() => {
 })
 
 const statusText = computed(() => {
-  if (currentStatus.value === 'error') return 'Error'
-  if (currentStatus.value === 'completed') return 'Completed'
-  return 'Running'
+  if (currentStatus.value === 'error') return t('common.error')
+  if (currentStatus.value === 'completed') return t('common.completed')
+  if (currentStatus.value === 'awaiting_finish') return t('step3.actionsCompleted')
+  if (currentStatus.value === 'finishing') return t('step3.finishingSimulation')
+  return t('common.running')
 })
 
 const isSimulating = computed(() => currentStatus.value === 'processing')
@@ -425,6 +427,8 @@ onUnmounted(() => {
 }
 
 .status-indicator.processing .dot { background: #FF5722; animation: pulse 1s infinite; }
+.status-indicator.awaiting_finish .dot { background: #FF9800; }
+.status-indicator.finishing .dot { background: #FF9800; animation: pulse 1s infinite; }
 .status-indicator.completed .dot { background: #4CAF50; }
 .status-indicator.error .dot { background: #F44336; }
 
@@ -449,4 +453,3 @@ onUnmounted(() => {
   border-right: 1px solid #EAEAEA;
 }
 </style>
-

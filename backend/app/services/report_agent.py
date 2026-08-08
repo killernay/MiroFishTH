@@ -954,14 +954,25 @@ class ReportAgent:
             ]
             corrected = self.llm.chat(messages=retry_messages, temperature=0.3, max_tokens=4096)
             if corrected is None:
+                if self._can_omit_unverified_source_evidence(text):
+                    return self._render_source_evidence(
+                        self._omit_unverified_source_evidence(text)
+                    )
                 raise GeneratedContentLanguageError(
                     t('api.reportGenerateFailed')
                 )
             corrected = ReportAgent._strip_fake_tool_results(corrected)
             if "Final Answer:" in corrected:
                 corrected = corrected.split("Final Answer:")[-1].strip()
-            self._validate_generated_prose(corrected)
-            return self._render_source_evidence(corrected)
+            try:
+                self._validate_generated_prose(corrected)
+                return self._render_source_evidence(corrected)
+            except GeneratedContentLanguageError:
+                if self._can_omit_unverified_source_evidence(corrected):
+                    return self._render_source_evidence(
+                        self._omit_unverified_source_evidence(corrected)
+                    )
+                raise
 
     def _validate_generated_prose(self, text: str) -> None:
         """Reject unverified tags and invalid generated prose.
@@ -986,6 +997,28 @@ class ReportAgent:
             evidence in result
             for result in getattr(self, "_verified_source_results", [])
         )
+
+    def _can_omit_unverified_source_evidence(self, text: str) -> bool:
+        """Only recover when non-evidence prose already matches the run locale."""
+        generated_prose = _SOURCE_EVIDENCE_PATTERN.sub("", text)
+        try:
+            validate_generated_content(generated_prose, locale=get_locale())
+        except GeneratedContentLanguageError:
+            return False
+        return any(
+            not self._is_verified_source_evidence(match.group(1))
+            for match in _SOURCE_EVIDENCE_PATTERN.finditer(text)
+        )
+
+    def _omit_unverified_source_evidence(self, text: str) -> str:
+        """Drop unverifiable model claims rather than persisting them as evidence."""
+        def replace(match: re.Match[str]) -> str:
+            if self._is_verified_source_evidence(match.group(1)):
+                return match.group(0)
+            logger.warning(t('report.unverifiedSourceEvidenceOmitted'))
+            return f"\n\n> {t('report.unverifiedSourceEvidenceOmitted')}"
+
+        return _SOURCE_EVIDENCE_PATTERN.sub(replace, text)
 
     @staticmethod
     def _render_source_evidence(text: str) -> str:

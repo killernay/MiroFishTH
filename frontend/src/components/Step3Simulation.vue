@@ -91,6 +91,21 @@
       </div>
 
       <div class="action-controls">
+        <div v-if="completionState === 'awaiting_finish'" class="completion-notice">
+          <strong>{{ $t('step3.actionsCompleted') }}</strong>
+          <span>{{ $t('step3.awaitingFinishDescription') }}</span>
+          <button
+            class="action-btn secondary"
+            :disabled="isFinishing"
+            @click="handleFinishSimulation"
+          >
+            {{ isFinishing ? $t('step3.finishingSimulation') : $t('step3.finishSimulation') }}
+          </button>
+        </div>
+        <div v-else-if="completionState === 'finishing'" class="completion-notice">
+          <strong>{{ $t('step3.finishingSimulation') }}</strong>
+          <span>{{ $t('step3.finishingDescription') }}</span>
+        </div>
         <button 
           class="action-btn primary"
           :disabled="phase !== 2 || isGeneratingReport"
@@ -292,10 +307,12 @@ import { useI18n } from 'vue-i18n'
 import {
   startSimulation,
   stopSimulation,
+  closeSimulationEnv,
   getRunStatus,
   getRunStatusDetail
 } from '../api/simulation'
 import { generateReport } from '../api/report'
+import { getSimulationCompletionState } from '../utils/simulationCompletion'
 
 const { t } = useI18n()
 
@@ -320,6 +337,7 @@ const isGeneratingReport = ref(false)
 const phase = ref(0) // 0: 未开始, 1: 运行中, 2: 已完成
 const isStarting = ref(false)
 const isStopping = ref(false)
+const isFinishing = ref(false)
 const startError = ref(null)
 const runStatus = ref({})
 const allActions = ref([]) // 所有动作（增量累积）
@@ -359,6 +377,8 @@ const twitterElapsedTime = computed(() => {
 const redditElapsedTime = computed(() => {
   return formatElapsedTime(runStatus.value.reddit_current_round || 0)
 })
+
+const completionState = computed(() => getSimulationCompletionState(runStatus.value))
 
 // Methods
 const addLog = (msg) => {
@@ -461,6 +481,28 @@ const handleStopSimulation = async () => {
   }
 }
 
+const handleFinishSimulation = async () => {
+  if (!props.simulationId || completionState.value !== 'awaiting_finish') return
+  if (!window.confirm(t('step3.confirmFinishSimulation'))) return
+
+  isFinishing.value = true
+  emit('update-status', 'finishing')
+  addLog(t('step3.finishRequested'))
+
+  try {
+    const res = await closeSimulationEnv({ simulation_id: props.simulationId, timeout: 30 })
+    if (!res.success) {
+      addLog(t('step3.finishFailed', { error: res.error || t('common.unknownError') }))
+      emit('update-status', 'awaiting_finish')
+    }
+  } catch (err) {
+    addLog(t('step3.finishFailed', { error: err.message }))
+    emit('update-status', 'awaiting_finish')
+  } finally {
+    isFinishing.value = false
+  }
+}
+
 // 轮询状态
 let statusTimer = null
 let detailTimer = null
@@ -513,6 +555,7 @@ const fetchRunStatus = async () => {
       // 检测模拟是否已完成（通过 runner_status 或平台完成状态判断）
       const isCompleted = data.runner_status === 'completed' || data.runner_status === 'stopped'
       const isFailed = data.runner_status === 'failed'
+      const state = getSimulationCompletionState(data)
       
       // runner_status is authoritative because the backend only publishes a
       // terminal state after the Zep ingestion barrier has completed.
@@ -526,35 +569,15 @@ const fetchRunStatus = async () => {
         phase.value = 2
         stopPolling()
         emit('update-status', 'completed')
+      } else if (state === 'awaiting_finish') {
+        emit('update-status', 'awaiting_finish')
+      } else if (state === 'finishing') {
+        emit('update-status', 'finishing')
       }
     }
   } catch (err) {
     console.warn('获取运行状态失败:', err)
   }
-}
-
-// 检查所有启用的平台是否已完成
-const checkPlatformsCompleted = (data) => {
-  // 如果没有任何平台数据，返回 false
-  if (!data) return false
-  
-  // 检查各平台的完成状态
-  const twitterCompleted = data.twitter_completed === true
-  const redditCompleted = data.reddit_completed === true
-  
-  // 如果至少有一个平台完成了，检查是否所有启用的平台都完成了
-  // 通过 actions_count 判断平台是否被启用（如果 count > 0 或 running 曾为 true）
-  const twitterEnabled = (data.twitter_actions_count > 0) || data.twitter_running || twitterCompleted
-  const redditEnabled = (data.reddit_actions_count > 0) || data.reddit_running || redditCompleted
-  
-  // 如果没有任何平台被启用，返回 false
-  if (!twitterEnabled && !redditEnabled) return false
-  
-  // 检查所有启用的平台是否都已完成
-  if (twitterEnabled && !twitterCompleted) return false
-  if (redditEnabled && !redditCompleted) return false
-  
-  return true
 }
 
 const fetchRunStatusDetail = async () => {
@@ -699,16 +722,17 @@ const initOrResumeSimulation = async () => {
       runStatus.value = existing
       await fetchRunStatusDetail()
 
-      if (existing.runner_status === 'completed' || existing.runner_status === 'stopped') {
+      const existingState = getSimulationCompletionState(existing)
+      if (existingState === 'report_ready') {
         phase.value = 2
         emit('update-status', 'completed')
         addLog('Existing completed simulation found. Report generation is ready.')
         return
       }
 
-      if (['starting', 'running', 'paused', 'stopping'].includes(existing.runner_status)) {
+      if (['running', 'awaiting_finish', 'finishing'].includes(existingState)) {
         phase.value = 1
-        emit('update-status', 'processing')
+        emit('update-status', existingState === 'running' ? 'processing' : existingState)
         addLog(`Resuming existing simulation monitor (${existing.runner_status}).`)
         startStatusPolling()
         startDetailPolling()
@@ -903,6 +927,24 @@ onUnmounted(() => {
   align-items: center;
 }
 
+.action-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.completion-notice {
+  display: grid;
+  gap: 4px;
+  max-width: 440px;
+  color: #5B4300;
+  font-size: 12px;
+}
+
+.completion-notice strong {
+  color: #8A6200;
+}
+
 /* Action Button */
 .action-btn {
   display: inline-flex;
@@ -926,6 +968,14 @@ onUnmounted(() => {
 
 .action-btn.primary:hover:not(:disabled) {
   background: #333;
+}
+
+.action-btn.secondary {
+  width: fit-content;
+  padding: 7px 12px;
+  background: #FFF7E0;
+  border: 1px solid #D8A82A;
+  color: #5B4300;
 }
 
 .action-btn:disabled {

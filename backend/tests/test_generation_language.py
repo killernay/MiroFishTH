@@ -247,6 +247,25 @@ def test_report_retries_when_model_marks_unverified_chinese_as_source_evidence()
     assert len(agent.llm.calls) == 1
 
 
+def test_report_completes_without_an_unverified_evidence_tag_when_retry_is_unavailable():
+    class LLM:
+        def chat(self, **_kwargs):
+            return None
+
+    set_locale("en")
+    agent = object.__new__(ReportAgent)
+    agent.llm = LLM()
+
+    result = agent._ensure_locale_safe_text(
+        "English finding. <source_evidence>这是未经验证的引文</source_evidence>",
+        [{"role": "user", "content": "write"}],
+    )
+
+    assert "English finding." in result
+    assert "这是未经验证的引文" not in result
+    assert "Source evidence omitted because it could not be verified." in result
+
+
 def test_report_chat_does_not_trust_chinese_evidence_from_a_legacy_report(monkeypatch):
     class LLM:
         def __init__(self):

@@ -8,8 +8,9 @@ import logging
 import re
 from typing import Dict, Any, List, Optional
 from ..utils.llm_client import LLMClient
-from ..utils.locale import get_language_instruction
+from ..utils.locale import get_language_instruction, get_locale
 from ..utils.file_parser import split_text_into_chunks
+from .generation_language import generate_locale_safe_content
 from ..utils.ontology import (
     MAX_ONTOLOGY_TYPES,
     normalize_ontology_attributes,
@@ -226,21 +227,25 @@ class OntologyGenerator:
         
         lang_instruction = get_language_instruction()
         system_prompt = f"{ONTOLOGY_SYSTEM_PROMPT}\n\n{lang_instruction}\nIMPORTANT: Entity type names MUST be in English PascalCase (e.g., 'PersonEntity', 'MediaOrganization'). Relationship type names MUST be in English UPPER_SNAKE_CASE (e.g., 'WORKS_FOR'). Attribute names MUST be in English snake_case. Only description fields and analysis_summary should use the specified language above."
-        messages = [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_message}
-        ]
-        
-        # 调用LLM
-        result = self.llm_client.chat_json(
-            messages=messages,
-            temperature=0.3,
-            # Structured ontology responses can exceed 4096 completion tokens,
-            # especially when a compatible provider counts hidden reasoning in
-            # the same budget. Let the provider use its model-specific limit.
-            max_tokens=None,
-            max_attempts=2,
-        )
+        def generate_once(language_correction: str) -> Dict[str, Any]:
+            messages = [
+                {
+                    "role": "system",
+                    "content": f"{system_prompt}\n\n{language_correction}".rstrip(),
+                },
+                {"role": "user", "content": user_message},
+            ]
+            return self.llm_client.chat_json(
+                messages=messages,
+                temperature=0.3,
+                # Structured ontology responses can exceed 4096 completion tokens,
+                # especially when a compatible provider counts hidden reasoning in
+                # the same budget. Let the provider use its model-specific limit.
+                max_tokens=None,
+                max_attempts=2,
+            )
+
+        result = generate_locale_safe_content(generate_once, locale=get_locale())
         
         # 验证和后处理
         result = self._validate_and_process(result)

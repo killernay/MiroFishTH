@@ -20,7 +20,7 @@ from queue import Queue
 
 from ..config import Config
 from ..utils.logger import get_logger
-from ..utils.locale import get_locale, set_locale
+from ..utils.locale import get_locale, normalize_locale, set_locale
 from ..utils.zep import (
     ZEP_HTTP_REQUEST_TIMEOUT_SECONDS,
     ZEP_INGESTION_WAIT_TIMEOUT_SECONDS,
@@ -110,6 +110,7 @@ class RoundSummary:
 class SimulationRunState:
     """模拟运行状态（实时）"""
     simulation_id: str
+    locale: str = "en"
     runner_status: RunnerStatus = RunnerStatus.IDLE
     
     # 进度信息
@@ -168,6 +169,7 @@ class SimulationRunState:
     def to_dict(self) -> Dict[str, Any]:
         return {
             "simulation_id": self.simulation_id,
+            "locale": self.locale,
             "runner_status": self.runner_status.value,
             "current_round": self.current_round,
             "total_rounds": self.total_rounds,
@@ -310,6 +312,7 @@ class SimulationRunner:
             
             state = SimulationRunState(
                 simulation_id=simulation_id,
+                locale=normalize_locale(data.get("locale")),
                 runner_status=RunnerStatus(data.get("runner_status", "idle")),
                 current_round=data.get("current_round", 0),
                 total_rounds=data.get("total_rounds", 0),
@@ -374,7 +377,8 @@ class SimulationRunner:
         platform: str = "parallel",  # twitter / reddit / parallel
         max_rounds: int = None,  # 最大模拟轮数（可选，用于截断过长的模拟）
         enable_graph_memory_update: bool = False,  # 是否将活动更新到Zep图谱
-        graph_id: str = None  # Zep图谱ID（启用图谱更新时必需）
+        graph_id: str = None,  # Zep图谱ID（启用图谱更新时必需）
+        locale: str = "en",
     ) -> SimulationRunState:
         """
         启动模拟
@@ -389,6 +393,8 @@ class SimulationRunner:
         Returns:
             SimulationRunState
         """
+        locale = normalize_locale(locale)
+
         # 加载模拟配置
         sim_dir = os.path.join(cls.RUN_STATE_DIR, simulation_id)
         config_path = os.path.join(sim_dir, "simulation_config.json")
@@ -414,6 +420,7 @@ class SimulationRunner:
         
         state = SimulationRunState(
             simulation_id=simulation_id,
+            locale=locale,
             runner_status=RunnerStatus.STARTING,
             total_rounds=total_rounds,
             total_simulation_hours=total_hours,
@@ -533,6 +540,7 @@ class SimulationRunner:
             env = os.environ.copy()
             env['PYTHONUTF8'] = '1'  # Python 3.7+ 支持，让所有 open() 默认使用 UTF-8
             env['PYTHONIOENCODING'] = 'utf-8'  # 确保 stdout/stderr 使用 UTF-8
+            env['MIROFISH_LOCALE'] = state.locale
             
             # 设置工作目录为模拟目录（数据库等文件会生成在此）
             # 使用 start_new_session=True 创建新的进程组，确保可以通过 os.killpg 终止所有子进程
@@ -549,7 +557,7 @@ class SimulationRunner:
             )
             
             # Capture locale before spawning monitor thread
-            current_locale = get_locale()
+            current_locale = state.locale
 
             monitor_thread = threading.Thread(
                 target=cls._monitor_simulation,
@@ -617,7 +625,7 @@ class SimulationRunner:
         return state
     
     @classmethod
-    def _monitor_simulation(cls, simulation_id: str, locale: str = 'zh'):
+    def _monitor_simulation(cls, simulation_id: str, locale: str = 'en'):
         """监控模拟进程，解析动作日志"""
         set_locale(locale)
         sim_dir = os.path.join(cls.RUN_STATE_DIR, simulation_id)

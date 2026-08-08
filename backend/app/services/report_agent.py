@@ -21,7 +21,12 @@ from enum import Enum
 from ..config import Config
 from ..utils.llm_client import LLMClient
 from ..utils.logger import get_logger
-from ..utils.locale import get_language_instruction, t
+from ..utils.locale import get_language_instruction, get_locale, t
+from .generation_language import (
+    GeneratedContentLanguageError,
+    locale_retry_instruction,
+    validate_generated_content,
+)
 from .zep_tools import (
     ZepToolsService, 
     SearchResult, 
@@ -921,6 +926,26 @@ class ReportAgent:
         self.console_logger: Optional[ReportConsoleLogger] = None
         
         logger.info(t('report.agentInitDone', graphId=graph_id, simulationId=simulation_id))
+
+    def _ensure_locale_safe_text(self, text: str, messages: List[Dict[str, str]]) -> str:
+        """Retry one generated report response before persisting Chinese output."""
+        try:
+            return validate_generated_content(text, locale=get_locale())
+        except GeneratedContentLanguageError:
+            retry_messages = [
+                *messages,
+                {"role": "assistant", "content": text},
+                {"role": "user", "content": locale_retry_instruction(get_locale())},
+            ]
+            corrected = self.llm.chat(messages=retry_messages, temperature=0.3, max_tokens=4096)
+            if corrected is None:
+                raise GeneratedContentLanguageError(
+                    t('api.reportGenerateFailed')
+                )
+            corrected = ReportAgent._strip_fake_tool_results(corrected)
+            if "Final Answer:" in corrected:
+                corrected = corrected.split("Final Answer:")[-1].strip()
+            return validate_generated_content(corrected, locale=get_locale())
     
     def _define_tools(self) -> Dict[str, Dict[str, Any]]:
         """定义可用工具"""
@@ -1220,6 +1245,20 @@ class ReportAgent:
                 ],
                 temperature=0.3
             )
+            try:
+                validate_generated_content(response, locale=get_locale())
+            except GeneratedContentLanguageError:
+                response = self.llm.chat_json(
+                    messages=[
+                        {
+                            "role": "system",
+                            "content": f"{system_prompt}\n\n{locale_retry_instruction(get_locale())}",
+                        },
+                        {"role": "user", "content": user_prompt},
+                    ],
+                    temperature=0.3,
+                )
+                validate_generated_content(response, locale=get_locale())
             
             if progress_callback:
                 progress_callback("planning", 80, t('progress.parsingOutline'))
@@ -1440,7 +1479,7 @@ class ReportAgent:
                         content=final_answer,
                         tool_calls_count=tool_calls_count
                     )
-                return final_answer
+                return self._ensure_locale_safe_text(final_answer, messages)
 
             # ── 情况2：LLM 尝试调用工具 ──
             if has_tool_calls:
@@ -1541,7 +1580,7 @@ class ReportAgent:
                     content=final_answer,
                     tool_calls_count=tool_calls_count
                 )
-            return final_answer
+            return self._ensure_locale_safe_text(final_answer, messages)
         
         # 达到最大迭代次数，强制生成内容
         logger.warning(t('report.sectionMaxIter', title=section.title))
@@ -1571,7 +1610,7 @@ class ReportAgent:
                 tool_calls_count=tool_calls_count
             )
         
-        return final_answer
+        return self._ensure_locale_safe_text(final_answer, messages)
     
     def generate_report(
         self, 
@@ -1884,7 +1923,7 @@ class ReportAgent:
                 clean_response = ReportAgent._strip_fake_tool_results(clean_response)
                 
                 return {
-                    "response": clean_response.strip(),
+                    "response": self._ensure_locale_safe_text(clean_response.strip(), messages),
                     "tool_calls": tool_calls_made,
                     "sources": [tc.get("parameters", {}).get("query", "") for tc in tool_calls_made]
                 }
@@ -1922,7 +1961,7 @@ class ReportAgent:
         clean_response = ReportAgent._strip_fake_tool_results(clean_response)
         
         return {
-            "response": clean_response.strip(),
+            "response": self._ensure_locale_safe_text(clean_response.strip(), messages),
             "tool_calls": tool_calls_made,
             "sources": [tc.get("parameters", {}).get("query", "") for tc in tool_calls_made]
         }

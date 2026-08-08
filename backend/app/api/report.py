@@ -17,7 +17,7 @@ from ..services.zep_graph_memory_updater import ZepGraphMemoryManager
 from ..models.project import ProjectManager, ProjectStatus
 from ..models.task import TaskManager, TaskStatus
 from ..utils.logger import get_logger
-from ..utils.locale import t, get_locale, set_locale
+from ..utils.locale import clear_locale_override, t, get_locale, set_locale
 from ..utils.zep_lifecycle import (
     graph_lifecycle_lock,
     register_graph_reader,
@@ -239,7 +239,7 @@ def generate_report():
                     "report_id": report_id
                 }
             )
-            current_locale = get_locale()
+            current_locale = getattr(state, "locale", "en")
             register_graph_reader(graph_id, report_id)
 
             def run_generate():
@@ -660,14 +660,17 @@ def chat_with_report_agent():
         
         simulation_requirement = project.simulation_requirement or ""
         
-        # 创建Agent并进行对话
-        agent = ReportAgent(
-            graph_id=graph_id,
-            simulation_id=simulation_id,
-            simulation_requirement=simulation_requirement
-        )
-        
-        result = agent.chat(message=message, chat_history=chat_history)
+        # Chat follows the immutable run locale, not the browser locale.
+        set_locale(state.locale, override_request=True)
+        try:
+            agent = ReportAgent(
+                graph_id=graph_id,
+                simulation_id=simulation_id,
+                simulation_requirement=simulation_requirement
+            )
+            result = agent.chat(message=message, chat_history=chat_history)
+        finally:
+            clear_locale_override()
         
         return jsonify({
             "success": True,

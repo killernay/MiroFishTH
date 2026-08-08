@@ -20,7 +20,7 @@ def test_thai_is_available_to_background_workers_without_chinese_fallback():
     instruction = get_language_instruction()
     assert "ภาษาไทย" in instruction
     assert not any("\u4e00" <= character <= "\u9fff" for character in instruction)
-    assert t("common.loading") == "Loading..."
+    assert t("common.loading") == "กำลังโหลด..."
 
 
 def test_legacy_chinese_worker_locale_is_normalized_to_english():

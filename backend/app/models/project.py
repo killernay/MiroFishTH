@@ -12,6 +12,7 @@ from typing import Dict, Any, List, Optional
 from enum import Enum
 from dataclasses import dataclass, field, asdict
 from ..config import Config
+from ..utils.locale import normalize_locale
 
 
 class ProjectStatus(str, Enum):
@@ -31,6 +32,7 @@ class Project:
     status: ProjectStatus
     created_at: str
     updated_at: str
+    locale: str = "en"
     
     # 文件信息
     files: List[Dict[str, str]] = field(default_factory=list)  # [{filename, path, size}]
@@ -62,6 +64,7 @@ class Project:
             "status": self.status.value if isinstance(self.status, ProjectStatus) else self.status,
             "created_at": self.created_at,
             "updated_at": self.updated_at,
+            "locale": self.locale,
             "files": self.files,
             "total_text_length": self.total_text_length,
             "ontology": self.ontology,
@@ -89,6 +92,7 @@ class Project:
             status=status,
             created_at=data.get('created_at', ''),
             updated_at=data.get('updated_at', ''),
+            locale=normalize_locale(data.get('locale')),
             files=data.get('files', []),
             total_text_length=data.get('total_text_length', 0),
             ontology=data.get('ontology'),
@@ -136,7 +140,7 @@ class ProjectManager:
         return os.path.join(cls._get_project_dir(project_id), 'extracted_text.txt')
     
     @classmethod
-    def create_project(cls, name: str = "Unnamed Project") -> Project:
+    def create_project(cls, name: str = "Unnamed Project", locale: str = "en") -> Project:
         """
         创建新项目
         
@@ -156,7 +160,8 @@ class ProjectManager:
             name=name,
             status=ProjectStatus.CREATED,
             created_at=now,
-            updated_at=now
+            updated_at=now,
+            locale=normalize_locale(locale),
         )
         
         # 创建项目目录结构

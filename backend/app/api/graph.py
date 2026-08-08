@@ -317,7 +317,7 @@ def generate_ontology():
             }), 400
         
         # 创建项目
-        project = ProjectManager.create_project(name=project_name)
+        project = ProjectManager.create_project(name=project_name, locale=get_locale())
         project.simulation_requirement = simulation_requirement
         logger.info(f"创建项目: {project.project_id}")
         
@@ -645,7 +645,7 @@ def _build_graph_impl():
         ProjectManager.save_project(project)
         
         # Capture locale before spawning background thread
-        current_locale = get_locale()
+        current_locale = project.locale
 
         # 启动后台任务
         def build_task():

@@ -249,6 +249,7 @@ def create_simulation():
         state = manager.create_simulation(
             project_id=project_id,
             graph_id=graph_id,
+            locale=project.locale,
             enable_twitter=data.get('enable_twitter', True),
             enable_reddit=data.get('enable_reddit', True),
         )
@@ -532,7 +533,7 @@ def prepare_simulation():
         manager._save_simulation_state(state)
         
         # Capture locale before spawning background thread
-        current_locale = get_locale()
+        current_locale = state.locale
 
         # 定义后台任务
         def run_prepare():
@@ -1754,7 +1755,8 @@ def start_simulation():
                 platform=platform,
                 max_rounds=max_rounds,
                 enable_graph_memory_update=enable_graph_memory_update,
-                graph_id=graph_id
+                graph_id=graph_id,
+                locale=state.locale,
             )
         
         response_data = run_state.to_dict()

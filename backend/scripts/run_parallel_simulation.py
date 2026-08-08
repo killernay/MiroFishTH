@@ -66,6 +66,7 @@ if sys.platform == 'win32':
 
 import argparse
 import asyncio
+import builtins
 import json
 import logging
 import multiprocessing
@@ -80,6 +81,78 @@ from typing import Dict, Any, List, Optional, Tuple
 # 全局变量：用于信号处理
 _shutdown_event = None
 _cleanup_done = False
+_system_locale = "th" if os.environ.get("MIROFISH_LOCALE", "").lower().startswith("th") else "en"
+
+
+def configure_system_locale(config: Dict[str, Any]) -> str:
+    """Freeze system output language from the run config, with an env fallback.
+
+    A persisted run locale always wins: environment changes after a run has been
+    prepared must not change its subprocess logs.
+    """
+    global _system_locale
+    candidate = config.get("locale") if "locale" in config else os.environ.get("MIROFISH_LOCALE")
+    _system_locale = "th" if str(candidate or "").lower().startswith("th") else "en"
+    return _system_locale
+
+
+def system_message(english: str, thai: str) -> str:
+    """Return system-authored output in the frozen run locale."""
+    return thai if _system_locale == "th" else english
+
+
+_SYSTEM_OUTPUT_TERMS = {
+    "已加载环境配置": ("loaded environment configuration", "โหลดการตั้งค่าสภาพแวดล้อมแล้ว"),
+    "错误": ("Error", "ข้อผิดพลาด"), "警告": ("Warning", "คำเตือน"),
+    "模拟": ("simulation", "การจำลอง"), "配置文件": ("configuration file", "ไฟล์การตั้งค่า"),
+    "模拟ID": ("simulation ID", "รหัสการจำลอง"), "等待命令模式": ("command wait mode", "โหมดรอคำสั่ง"),
+    "启用": ("enabled", "เปิดใช้งาน"), "禁用": ("disabled", "ปิดใช้งาน"),
+    "模拟参数": ("simulation parameters", "พารามิเตอร์การจำลอง"),
+    "总模拟时长": ("total simulation duration", "ระยะเวลาการจำลองรวม"), "每轮时间": ("minutes per round", "นาทีต่อรอบ"),
+    "总轮数": ("total rounds", "จำนวนรอบทั้งหมด"), "Agent数量": ("agent count", "จำนวนเอเจนต์"),
+    "初始化": ("initializing", "กำลังเริ่มต้น"), "环境": ("environment", "สภาพแวดล้อม"),
+    "已启动": ("started", "เริ่มแล้ว"), "已关闭": ("closed", "ปิดแล้ว"),
+    "初始化完成": ("initialization complete", "เริ่มต้นเสร็จสมบูรณ์"),
+    "开始模拟循环": ("starting simulation loop", "กำลังเริ่มรอบการจำลอง"),
+    "模拟循环完成": ("simulation loop complete", "รอบการจำลองเสร็จสมบูรณ์"),
+    "总耗时": ("total elapsed", "เวลาที่ใช้ทั้งหมด"), "总动作": ("total actions", "จำนวนการกระทำทั้งหมด"),
+    "进入等待命令模式": ("entering command wait mode", "กำลังเข้าสู่โหมดรอคำสั่ง"),
+    "支持的命令": ("supported commands", "คำสั่งที่รองรับ"), "关闭环境": ("closing environment", "กำลังปิดสภาพแวดล้อม"),
+    "全部完成": ("all complete", "เสร็จสมบูรณ์ทั้งหมด"), "日志文件": ("log files", "ไฟล์บันทึก"),
+    "轮数已截断": ("rounds truncated", "ตัดจำนวนรอบแล้ว"), "最大轮数限制": ("maximum round limit", "ขีดจำกัดรอบสูงสุด"),
+    "Profile文件不存在": ("profile file does not exist", "ไม่พบไฟล์โปรไฟล์"),
+    "已删除旧数据库": ("removed old database", "ลบฐานข้อมูลเดิมแล้ว"),
+    "LLM配置": ("LLM configuration", "การตั้งค่า LLM"), "默认": ("default", "ค่าเริ่มต้น"),
+    "收到退出信号": ("received shutdown signal", "ได้รับสัญญาณปิดระบบ"),
+    "收到中断信号": ("received interrupt signal", "ได้รับสัญญาณขัดจังหวะ"),
+    "任务被取消": ("task cancelled", "งานถูกยกเลิก"), "命令处理出错": ("command processing error", "เกิดข้อผิดพลาดขณะประมวลผลคำสั่ง"),
+    "模拟进程已退出": ("simulation process exited", "โปรเซสการจำลองออกแล้ว"), "强制退出": ("forcing exit", "บังคับออก"),
+}
+_SYSTEM_OUTPUT_TERMS.update({
+    "请先安装": ("Please install", "โปรดติดตั้ง"), "缺少依赖": ("missing dependency", "ไม่มีไลบรารีที่จำเป็น"),
+    "小时": (" hours", " ชั่วโมง"), "分钟": (" minutes", " นาที"), "秒": (" seconds", " วินาที"),
+    "数据库": ("database", "ฐานข้อมูล"), "程序被中断": ("program interrupted", "โปรแกรมถูกขัดจังหวะ"), "正在退出": ("shutting down", "กำลังปิดระบบ"),
+    "Interview失败": ("interview failed", "การสัมภาษณ์ล้มเหลว"), "Interview完成": ("interview complete", "การสัมภาษณ์เสร็จสมบูรณ์"),
+    "批量Interview": ("batch interview", "การสัมภาษณ์แบบกลุ่ม"), "成功平台数": ("successful platforms", "แพลตฟอร์มที่สำเร็จ"), "所有平台都失败": ("all platforms failed", "ทุกแพลตฟอร์มล้มเหลว"),
+    "无法获取": ("cannot get", "ไม่สามารถรับ"), "读取Interview结果失败": ("failed to read interview result", "อ่านผลการสัมภาษณ์ไม่สำเร็จ"),
+    "收到IPC命令": ("received IPC command", "ได้รับคำสั่ง IPC"), "收到关闭环境命令": ("received environment shutdown command", "ได้รับคำสั่งปิดสภาพแวดล้อม"),
+    "未知命令类型": ("unknown command type", "ประเภทคำสั่งไม่รู้จัก"), "读取数据库动作失败": ("failed to read database actions", "อ่านการกระทำจากฐานข้อมูลไม่สำเร็จ"),
+    "补充动作上下文失败": ("failed to add action context", "เพิ่มบริบทการกระทำไม่สำเร็จ"), "配置总轮数": ("configured total rounds", "จำนวนรอบที่ตั้งค่าไว้"),
+    "实际执行轮数": ("actual rounds run", "จำนวนรอบที่ทำงานจริง"), "日志结构": ("log layout", "โครงสร้างบันทึก"), "主日志": ("main log", "บันทึกหลัก"), "动作": ("actions", "การกระทำ"),
+})
+
+
+def localize_system_output(value):
+    if not isinstance(value, str):
+        return value
+    for source, (english, thai) in sorted(_SYSTEM_OUTPUT_TERMS.items(), key=lambda item: len(item[0]), reverse=True):
+        value = value.replace(source, system_message(english, thai))
+    return value
+
+
+def print(*values, **kwargs):
+    """Localize only script-authored process output; action data is not printed here."""
+    builtins.print(*(localize_system_output(value) for value in values), **kwargs)
 
 # 添加 backend 目录到路径
 # 脚本固定位于 backend/scripts/ 目录
@@ -1531,6 +1604,7 @@ async def main():
         sys.exit(1)
     
     config = load_config(args.config)
+    configure_system_locale(config)
     simulation_dir = os.path.dirname(args.config) or "."
     wait_for_commands = not args.no_wait
     
@@ -1539,6 +1613,8 @@ async def main():
     
     # 创建日志管理器
     log_manager = SimulationLogManager(simulation_dir)
+    original_info = log_manager.info
+    log_manager.info = lambda message: original_info(localize_system_output(message))
     twitter_logger = log_manager.get_twitter_logger()
     reddit_logger = log_manager.get_reddit_logger()
     

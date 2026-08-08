@@ -21,22 +21,30 @@ for filename in os.listdir(_locales_dir):
             _translations[locale_name] = json.load(f)
 
 
-def _normalize_locale(locale: str | None) -> str:
+def normalize_locale(locale: str | None) -> str:
     """Return an enabled locale, accepting standard language-region headers."""
     candidate = (locale or '').split(',', 1)[0].split(';', 1)[0].strip().lower()
     candidate = candidate.split('-', 1)[0]
     return candidate if candidate in _languages and candidate in _translations else DEFAULT_LOCALE
 
 
-def set_locale(locale: str):
-    """Set locale for current thread. Call at the start of background threads."""
-    _thread_local.locale = _normalize_locale(locale)
+def set_locale(locale: str, *, override_request: bool = False):
+    """Set locale for the current thread, optionally overriding a request header."""
+    _thread_local.locale = normalize_locale(locale)
+    _thread_local.override_request = override_request
+
+
+def clear_locale_override():
+    """Clear a request-local run-locale override after one request completes."""
+    _thread_local.override_request = False
 
 
 def get_locale() -> str:
+    if getattr(_thread_local, 'override_request', False):
+        return normalize_locale(getattr(_thread_local, 'locale', DEFAULT_LOCALE))
     if has_request_context():
-        return _normalize_locale(request.headers.get('Accept-Language'))
-    return _normalize_locale(getattr(_thread_local, 'locale', DEFAULT_LOCALE))
+        return normalize_locale(request.headers.get('Accept-Language'))
+    return normalize_locale(getattr(_thread_local, 'locale', DEFAULT_LOCALE))
 
 
 def t(key: str, **kwargs) -> str:

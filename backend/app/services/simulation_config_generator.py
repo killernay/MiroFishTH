@@ -20,9 +20,10 @@ from openai import OpenAI
 
 from ..config import Config
 from ..utils.logger import get_logger
-from ..utils.locale import get_language_instruction, t
+from ..utils.locale import get_language_instruction, get_locale, t
 from ..utils.openai_chat_compat import create_chat_completion, extract_chat_completion_text
 from .zep_entity_reader import EntityNode, ZepEntityReader
+from .generation_language import GeneratedContentLanguageError, generate_locale_safe_content
 
 logger = get_logger('mirofish.simulation_config')
 
@@ -481,6 +482,16 @@ class SimulationConfigGenerator:
                 time.sleep(2 * (attempt + 1))
         
         raise last_error or Exception("LLM调用失败")
+
+    def _generate_locale_safe_json(self, prompt: str, system_prompt: str) -> Dict[str, Any]:
+        """Reject Chinese LLM output, retrying the complete generation once."""
+
+        return generate_locale_safe_content(
+            lambda correction: self._call_llm_with_retry(
+                prompt, f"{system_prompt}\n\n{correction}".rstrip()
+            ),
+            locale=get_locale(),
+        )
     
     def _fix_truncated_json(self, content: str) -> str:
         """修复被截断的JSON"""
@@ -591,7 +602,9 @@ class SimulationConfigGenerator:
         system_prompt = f"{system_prompt}\n\n{get_language_instruction()}"
 
         try:
-            return self._call_llm_with_retry(prompt, system_prompt)
+            return self._generate_locale_safe_json(prompt, system_prompt)
+        except GeneratedContentLanguageError:
+            raise
         except Exception as e:
             logger.warning(f"时间配置LLM生成失败: {e}, 使用默认配置")
             return self._get_default_time_config(num_entities)
@@ -708,7 +721,9 @@ class SimulationConfigGenerator:
         system_prompt = f"{system_prompt}\n\n{get_language_instruction()}\nIMPORTANT: The 'poster_type' field value MUST be in English PascalCase exactly matching the available entity types. Only 'content', 'narrative_direction', 'hot_topics' and 'reasoning' fields should use the specified language."
 
         try:
-            return self._call_llm_with_retry(prompt, system_prompt)
+            return self._generate_locale_safe_json(prompt, system_prompt)
+        except GeneratedContentLanguageError:
+            raise
         except Exception as e:
             logger.warning(f"事件配置LLM生成失败: {e}, 使用默认配置")
             return {
@@ -872,8 +887,10 @@ class SimulationConfigGenerator:
         system_prompt = f"{system_prompt}\n\n{get_language_instruction()}\nIMPORTANT: The 'stance' field value MUST be one of the English strings: 'supportive', 'opposing', 'neutral', 'observer'. All JSON field names and numeric values must remain unchanged. Only natural language text fields should use the specified language."
 
         try:
-            result = self._call_llm_with_retry(prompt, system_prompt)
+            result = self._generate_locale_safe_json(prompt, system_prompt)
             llm_configs = {cfg["agent_id"]: cfg for cfg in result.get("agent_configs", [])}
+        except GeneratedContentLanguageError:
+            raise
         except Exception as e:
             logger.warning(f"Agent配置批次LLM生成失败: {e}, 使用规则生成")
             llm_configs = {}
@@ -990,4 +1007,3 @@ class SimulationConfigGenerator:
                 "influence_weight": 1.0
             }
     
-

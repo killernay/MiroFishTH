@@ -346,7 +346,6 @@ const router = useRouter()
 
 // State
 const isGeneratingReport = ref(false)
-const reportAutoStarted = ref(false)
 const phase = ref(0) // 0: 未开始, 1: 运行中, 2: 已完成
 const reportReady = ref(false)
 const isStarting = ref(false)
@@ -595,10 +594,7 @@ const fetchRunStatus = async () => {
         phase.value = 2
         stopPolling()
         emit('update-status', 'completed')
-        if (!reportAutoStarted.value) {
-          reportAutoStarted.value = true
-          void handleNextStep()
-        }
+        addLog('Simulation complete. Generate the report when you are ready.')
       } else if (state === 'awaiting_finish') {
         // Actions are complete, but OASIS is intentionally still alive for
         // Interview/Survey and live report generation.
@@ -765,10 +761,6 @@ const initOrResumeSimulation = async () => {
         phase.value = 2
         emit('update-status', 'completed')
         addLog('Existing completed simulation found. Report generation is ready.')
-        if (!reportAutoStarted.value) {
-          reportAutoStarted.value = true
-          void handleNextStep()
-        }
         return
       }
 

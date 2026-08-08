@@ -78,13 +78,14 @@ test('keeps observing an idle run and activates detail polling once it starts el
   assert.match(component, /state === 'running'[\s\S]*startDetailPolling\(\)/)
 })
 
-test('starts report generation when simulation finalization reaches a terminal state', async () => {
+test('does not start report generation without an explicit user action', async () => {
   const component = await readFile(
     new URL('frontend/src/components/Step3Simulation.vue', repoRoot),
     'utf8'
   )
 
-  assert.match(component, /isCompleted[\s\S]*phase\.value = 2[\s\S]*handleNextStep\(\)/)
+  assert.match(component, /isCompleted[\s\S]*phase\.value = 2[\s\S]*Generate the report when you are ready/)
+  assert.doesNotMatch(component, /isCompleted[\s\S]*handleNextStep\(\)/)
 })
 
 test('keeps the report action available before closing OASIS', async () => {
@@ -97,13 +98,13 @@ test('keeps the report action available before closing OASIS', async () => {
   assert.match(component, /existingState === 'awaiting_finish' \? 2 : 1/)
 })
 
-test('starts report generation when reopening an already completed run', async () => {
+test('keeps report generation manual when reopening an already completed run', async () => {
   const component = await readFile(
     new URL('frontend/src/components/Step3Simulation.vue', repoRoot),
     'utf8'
   )
 
-  assert.match(component, /existingState === 'report_ready'[\s\S]*handleNextStep\(\)/)
+  assert.match(component, /existingState === 'report_ready'[\s\S]*Report generation is ready/)
 })
 
 test('requires an explicit confirmation before closing the interview environment', async () => {

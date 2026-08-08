@@ -2,6 +2,7 @@ import importlib.util
 import json
 import sys
 import types
+import ast
 from pathlib import Path
 
 import pytest
@@ -74,3 +75,31 @@ def test_parallel_script_uses_environment_locale_when_legacy_config_has_no_local
     module.configure_system_locale({})
 
     assert module.system_message("Simulation complete", "การจำลองเสร็จสมบูรณ์") == "การจำลองเสร็จสมบูรณ์"
+
+
+@pytest.mark.parametrize(
+    "filename",
+    ["run_parallel_simulation.py", "run_twitter_simulation.py", "run_reddit_simulation.py"],
+)
+def test_every_script_authored_print_fragment_is_localized_without_han(monkeypatch, filename):
+    module = _load_script(monkeypatch, filename)
+    tree = ast.parse((SCRIPTS_DIR / filename).read_text(encoding="utf-8"))
+    fragments = []
+
+    for call in ast.walk(tree):
+        if not isinstance(call, ast.Call) or not isinstance(call.func, ast.Name) or call.func.id != "print":
+            continue
+        fragments.extend(
+            node.value
+            for argument in call.args
+            for node in ast.walk(argument)
+            if isinstance(node, ast.Constant) and isinstance(node.value, str)
+        )
+
+    assert fragments
+    unlocalized = [
+        fragment
+        for fragment in fragments
+        if any("\u4e00" <= char <= "\u9fff" for char in module.localize_system_output(fragment))
+    ]
+    assert not unlocalized

@@ -139,6 +139,9 @@ _SYSTEM_OUTPUT_TERMS.update({
     "未知命令类型": ("unknown command type", "ประเภทคำสั่งไม่รู้จัก"), "读取数据库动作失败": ("failed to read database actions", "อ่านการกระทำจากฐานข้อมูลไม่สำเร็จ"),
     "补充动作上下文失败": ("failed to add action context", "เพิ่มบริบทการกระทำไม่สำเร็จ"), "配置总轮数": ("configured total rounds", "จำนวนรอบที่ตั้งค่าไว้"),
     "实际执行轮数": ("actual rounds run", "จำนวนรอบที่ทำงานจริง"), "日志结构": ("log layout", "โครงสร้างบันทึก"), "主日志": ("main log", "บันทึกหลัก"), "动作": ("actions", "การกระทำ"),
+    "加载Agent Profile": ("loading agent profiles", "กำลังโหลดโปรไฟล์เอเจนต์"), "创建OASIS环境": ("creating OASIS environment", "กำลังสร้างสภาพแวดล้อม OASIS"),
+    "环境保持运行": ("environment remains running", "สภาพแวดล้อมยังทำงานอยู่"), "个Agent": (" agents", " เอเจนต์"), "收到": ("received", "ได้รับ"), "信号": ("signal", "สัญญาณ"), "已发布": ("published", "เผยแพร่แล้ว"),
+    "不存在": ("does not exist", "ไม่มีอยู่"), "完成": ("complete", "เสร็จสมบูรณ์"), "失败": ("failed", "ล้มเหลว"), "模型": ("model", "โมเดล"), "批量": ("batch", "แบบกลุ่ม"),
 })
 
 

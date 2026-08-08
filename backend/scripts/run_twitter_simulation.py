@@ -64,6 +64,8 @@ _SYSTEM_OUTPUT_TERMS.update({
     "程序被中断": ("program interrupted", "โปรแกรมถูกขัดจังหวะ"), "正在退出": ("shutting down", "กำลังปิดระบบ"), "Interview失败": ("interview failed", "การสัมภาษณ์ล้มเหลว"), "Interview完成": ("interview complete", "การสัมภาษณ์เสร็จสมบูรณ์"), "批量Interview": ("batch interview", "การสัมภาษณ์แบบกลุ่ม"),
     "无法获取": ("cannot get", "ไม่สามารถรับ"), "读取Interview结果失败": ("failed to read interview result", "อ่านผลการสัมภาษณ์ไม่สำเร็จ"), "收到IPC命令": ("received IPC command", "ได้รับคำสั่ง IPC"), "收到关闭环境命令": ("received environment shutdown command", "ได้รับคำสั่งปิดสภาพแวดล้อม"),
     "执行初始事件": ("running initial events", "กำลังเรียกใช้เหตุการณ์เริ่มต้น"), "条初始帖子": (" initial posts", " โพสต์เริ่มต้น"), "无法为Agent": ("cannot create for agent", "ไม่สามารถสร้างสำหรับเอเจนต์"), "创建初始帖子": ("create initial post", "สร้างโพสต์เริ่มต้น"), "已发布": ("published", "เผยแพร่แล้ว"),
+    "加载Agent Profile": ("loading agent profiles", "กำลังโหลดโปรไฟล์เอเจนต์"), "创建OASIS环境": ("creating OASIS environment", "กำลังสร้างสภาพแวดล้อม OASIS"), "环境保持运行": ("environment remains running", "สภาพแวดล้อมยังทำงานอยู่"), "个Agent": (" agents", " เอเจนต์"), "收到": ("received", "ได้รับ"), "信号": ("signal", "สัญญาณ"),
+    "不存在": ("does not exist", "ไม่มีอยู่"), "完成": ("complete", "เสร็จสมบูรณ์"), "失败": ("failed", "ล้มเหลว"), "模型": ("model", "โมเดล"), "批量": ("batch", "แบบกลุ่ม"),
 })
 
 

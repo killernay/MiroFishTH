@@ -398,8 +398,7 @@ const doStartSimulation = async () => {
     const params = {
       simulation_id: props.simulationId,
       platform: 'parallel',
-      force: true,  // 强制重新开始
-      enable_graph_memory_update: true  // 开启动态图谱更新
+      enable_graph_memory_update: true  // ponytail: resume existing run if present; don't force-restart on remount
     }
     
     if (props.maxRounds) {
@@ -688,11 +687,43 @@ watch(() => props.systemLogs?.length, () => {
   })
 })
 
-onMounted(() => {
+const initOrResumeSimulation = async () => {
   addLog(t('log.step3Init'))
-  if (props.simulationId) {
-    doStartSimulation()
+  if (!props.simulationId) return
+
+  try {
+    const res = await getRunStatus(props.simulationId)
+    const existing = res?.success ? res.data : null
+
+    if (existing) {
+      runStatus.value = existing
+      await fetchRunStatusDetail()
+
+      if (existing.runner_status === 'completed' || existing.runner_status === 'stopped') {
+        phase.value = 2
+        emit('update-status', 'completed')
+        addLog('Existing completed simulation found. Report generation is ready.')
+        return
+      }
+
+      if (['starting', 'running', 'paused', 'stopping'].includes(existing.runner_status)) {
+        phase.value = 1
+        emit('update-status', 'processing')
+        addLog(`Resuming existing simulation monitor (${existing.runner_status}).`)
+        startStatusPolling()
+        startDetailPolling()
+        return
+      }
+    }
+  } catch (err) {
+    addLog(`Run status check failed, starting a new simulation: ${err.message}`)
   }
+
+  await doStartSimulation()
+}
+
+onMounted(() => {
+  initOrResumeSimulation()
 })
 
 onUnmounted(() => {

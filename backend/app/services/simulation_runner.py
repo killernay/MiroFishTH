@@ -291,13 +291,42 @@ class SimulationRunner:
     def get_run_state(cls, simulation_id: str) -> Optional[SimulationRunState]:
         """获取运行状态"""
         if simulation_id in cls._run_states:
-            return cls._run_states[simulation_id]
-        
-        # 尝试从文件加载
-        state = cls._load_run_state(simulation_id)
+            state = cls._run_states[simulation_id]
+        else:
+            # 尝试从文件加载
+            state = cls._load_run_state(simulation_id)
+            if state:
+                cls._run_states[simulation_id] = state
+
         if state:
-            cls._run_states[simulation_id] = state
+            cls._reconcile_orphaned_completed_state(state)
         return state
+
+    @classmethod
+    def _reconcile_orphaned_completed_state(cls, state: SimulationRunState) -> None:
+        # ponytail: backend restarts drop monitor threads; completed platform logs
+        # are enough to unblock reports, active ingestion still wins.
+        if state.runner_status not in {
+            RunnerStatus.STARTING,
+            RunnerStatus.RUNNING,
+            RunnerStatus.PAUSED,
+            RunnerStatus.STOPPING,
+        }:
+            return
+        if state.simulation_id in cls._processes:
+            return
+        if ZepGraphMemoryManager.get_updater(state.simulation_id) is not None:
+            return
+        if not cls._check_all_platforms_completed(state):
+            return
+
+        state.runner_status = RunnerStatus.COMPLETED
+        state.twitter_running = False
+        state.reddit_running = False
+        state.error = None
+        state.completed_at = state.completed_at or datetime.now().isoformat()
+        cls._save_run_state(state)
+        cls._sync_simulation_status(state.simulation_id, RunnerStatus.COMPLETED)
     
     @classmethod
     def _load_run_state(cls, simulation_id: str) -> Optional[SimulationRunState]:

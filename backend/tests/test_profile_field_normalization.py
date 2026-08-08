@@ -1,6 +1,7 @@
 import csv
 import json
 
+from app.utils.locale import set_locale
 from app.services.oasis_profile_generator import (
     OasisAgentProfile,
     OasisProfileGenerator,
@@ -74,3 +75,31 @@ def test_normalized_profile_serializes_to_twitter_and_reddit(tmp_path):
     assert reddit["persona"] == "详细, 人设"
     assert reddit["mbti"] == "ENFP"
     assert reddit["interested_topics"] == ["AI", "政策"]
+
+
+def test_rule_based_fallback_does_not_publish_raw_entity_summary():
+    set_locale("en")
+    generator = object.__new__(OasisProfileGenerator)
+    source_summary = "Unlabelled source evidence: 这是原始摘要"
+
+    profile = generator._generate_profile_rule_based(
+        "Example Entity", "unknown", source_summary, {}
+    )
+
+    assert source_summary not in profile["bio"]
+    assert source_summary not in profile["persona"]
+    assert "source evidence" not in profile["bio"].lower()
+    assert "source evidence" not in profile["persona"].lower()
+
+
+def test_profile_fallbacks_are_localized_without_entity_summary():
+    generator = object.__new__(OasisProfileGenerator)
+    source_summary = "Raw source summary"
+
+    set_locale("en")
+    assert source_summary not in generator._fallback_bio()
+    assert source_summary not in generator._fallback_persona()
+
+    set_locale("th")
+    assert "การสนทนา" in generator._fallback_bio()
+    assert "การสนทนา" in generator._fallback_persona()

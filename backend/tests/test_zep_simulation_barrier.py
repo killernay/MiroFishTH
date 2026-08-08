@@ -55,6 +55,51 @@ def test_manual_stop_surfaces_graph_ingestion_failure(monkeypatch):
         SimulationRunner._manual_stop_requests.discard("sim-1")
 
 
+def test_orphaned_completed_run_reconciles_after_backend_restart(monkeypatch, tmp_path):
+    simulation_id = "sim-orphaned"
+    sim_dir = tmp_path / simulation_id
+    (sim_dir / "twitter").mkdir(parents=True)
+    (sim_dir / "reddit").mkdir()
+    (sim_dir / "twitter" / "actions.jsonl").write_text(
+        '{"event_type":"simulation_end"}\n', encoding="utf-8"
+    )
+    (sim_dir / "reddit" / "actions.jsonl").write_text(
+        '{"event_type":"simulation_end"}\n', encoding="utf-8"
+    )
+    monkeypatch.setattr(SimulationRunner, "RUN_STATE_DIR", str(tmp_path))
+    monkeypatch.setattr(
+        runner_module.ZepGraphMemoryManager,
+        "get_updater",
+        classmethod(lambda _cls, _simulation_id: None),
+    )
+    synced = []
+    monkeypatch.setattr(
+        SimulationRunner,
+        "_sync_simulation_status",
+        classmethod(lambda _cls, sim_id, status, error=None: synced.append(status)),
+    )
+    SimulationRunner._run_states.pop(simulation_id, None)
+    SimulationRunner._processes.pop(simulation_id, None)
+
+    state = SimulationRunState(
+        simulation_id=simulation_id,
+        runner_status=RunnerStatus.RUNNING,
+        twitter_running=True,
+        reddit_running=True,
+        twitter_completed=True,
+        reddit_completed=True,
+    )
+    SimulationRunner._save_run_state(state)
+    SimulationRunner._run_states.pop(simulation_id, None)
+
+    loaded = SimulationRunner.get_run_state(simulation_id)
+
+    assert loaded.runner_status == RunnerStatus.COMPLETED
+    assert loaded.twitter_running is False
+    assert loaded.reddit_running is False
+    assert synced == [RunnerStatus.COMPLETED]
+
+
 def test_platform_completion_does_not_publish_terminal_success_before_barrier(
     monkeypatch, tmp_path
 ):

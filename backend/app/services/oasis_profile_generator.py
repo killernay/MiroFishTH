@@ -239,6 +239,16 @@ class OasisProfileGenerator:
         "university", "governmentagency", "organization", "ngo", 
         "mediaoutlet", "company", "institution", "group", "community"
     ]
+
+    @staticmethod
+    def _default_country() -> str:
+        return "ประเทศไทย" if get_locale() == "th" else "Thailand"
+
+    @staticmethod
+    def _fallback_persona(entity_name: str, entity_type: str) -> str:
+        if get_locale() == "th":
+            return f"{entity_name} เป็น {entity_type} ที่มีส่วนร่วมในการสนทนาทางสังคม"
+        return f"{entity_name} is a {entity_type} participating in social discussions."
     
     def __init__(
         self, 
@@ -598,7 +608,7 @@ class OasisProfileGenerator:
                     if "bio" not in result or not result["bio"]:
                         result["bio"] = entity_summary[:200] if entity_summary else f"{entity_type}: {entity_name}"
                     if "persona" not in result or not result["persona"]:
-                        result["persona"] = entity_summary or f"{entity_name}是一个{entity_type}。"
+                        result["persona"] = entity_summary or self._fallback_persona(entity_name, entity_type)
                     
                     return result
                     
@@ -695,7 +705,7 @@ class OasisProfileGenerator:
         persona_match = re.search(r'"persona"\s*:\s*"([^"]*)', content)  # 可能被截断
         
         bio = bio_match.group(1) if bio_match else (entity_summary[:200] if entity_summary else f"{entity_type}: {entity_name}")
-        persona = persona_match.group(1) if persona_match else (entity_summary or f"{entity_name}是一个{entity_type}。")
+        persona = persona_match.group(1) if persona_match else (entity_summary or self._fallback_persona(entity_name, entity_type))
         
         # 如果提取到了有意义的内容，标记为已修复
         if bio_match or persona_match:
@@ -710,7 +720,7 @@ class OasisProfileGenerator:
         logger.warning(f"JSON修复失败，返回基础结构")
         return {
             "bio": entity_summary[:200] if entity_summary else f"{entity_type}: {entity_name}",
-            "persona": entity_summary or f"{entity_name}是一个{entity_type}。"
+            "persona": entity_summary or self._fallback_persona(entity_name, entity_type)
         }
     
     def _get_system_prompt(self, is_individual: bool) -> str:
@@ -755,7 +765,7 @@ class OasisProfileGenerator:
 3. age: 年龄数字（必须是整数）
 4. gender: 性别，必须是英文: "male" 或 "female"
 5. mbti: MBTI类型（如INTJ、ENFP等）
-6. country: 国家（使用中文，如"中国"）
+6. country: 国家（使用当前输出语言）
 7. profession: 职业
 8. interested_topics: 感兴趣话题数组
 
@@ -804,7 +814,7 @@ class OasisProfileGenerator:
 3. age: 固定填30（机构账号的虚拟年龄）
 4. gender: 固定填"other"（机构账号使用other表示非个人）
 5. mbti: MBTI类型，用于描述账号风格，如ISTJ代表严谨保守
-6. country: 国家（使用中文，如"中国"）
+6. country: 国家（使用当前输出语言）
 7. profession: 机构职能描述
 8. interested_topics: 关注领域数组
 
@@ -858,7 +868,7 @@ class OasisProfileGenerator:
                 "age": 30,  # 机构虚拟年龄
                 "gender": "other",  # 机构使用other
                 "mbti": "ISTJ",  # 机构风格：严谨保守
-                "country": "中国",
+                "country": self._default_country(),
                 "profession": "Media",
                 "interested_topics": ["General News", "Current Events", "Public Affairs"],
             }
@@ -870,7 +880,7 @@ class OasisProfileGenerator:
                 "age": 30,  # 机构虚拟年龄
                 "gender": "other",  # 机构使用other
                 "mbti": "ISTJ",  # 机构风格：严谨保守
-                "country": "中国",
+                "country": self._default_country(),
                 "profession": entity_type,
                 "interested_topics": ["Public Policy", "Community", "Official Announcements"],
             }
@@ -1220,7 +1230,7 @@ class OasisProfileGenerator:
                 "age": profile.age if profile.age else 30,
                 "gender": self._normalize_gender(profile.gender),
                 "mbti": profile.mbti if profile.mbti else "ISTJ",
-                "country": profile.country if profile.country else "中国",
+                "country": profile.country if profile.country else self._default_country(),
             }
             
             # 可选字段

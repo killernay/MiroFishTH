@@ -107,24 +107,13 @@ def generate_report():
         run_state = SimulationRunner.get_run_state(simulation_id)
         updater = ZepGraphMemoryManager.get_updater(simulation_id)
         live_interview_ready = _is_live_interview_ready(run_state, simulation_id)
-        try:
-            updater = _drain_live_graph_ingestion(
-                simulation_id, live_interview_ready
-            )
-        except Exception as exc:
-            logger.warning("Graph ingestion could not be drained before report: %s", exc)
-            return jsonify({
-                "success": False,
-                "error": "Graph ingestion is still active or incomplete; retry after it finishes",
-                "ingestion_pending": True,
-            }), 409
         active_statuses = {
             RunnerStatus.STARTING,
             RunnerStatus.RUNNING,
             RunnerStatus.PAUSED,
             RunnerStatus.STOPPING,
         }
-        if updater is not None or (
+        if (updater is not None and not live_interview_ready) or (
             run_state is not None
             and run_state.runner_status in active_statuses
             and not live_interview_ready
@@ -224,17 +213,6 @@ def generate_report():
             refreshed_live_interview_ready = _is_live_interview_ready(
                 refreshed_run_state, simulation_id
             )
-            try:
-                refreshed_updater = _drain_live_graph_ingestion(
-                    simulation_id, refreshed_live_interview_ready
-                )
-            except Exception as exc:
-                logger.warning("Graph ingestion became incomplete before report: %s", exc)
-                return jsonify({
-                    "success": False,
-                    "error": "Graph ingestion is still active or incomplete; retry after it finishes",
-                    "ingestion_pending": True,
-                }), 409
             if (
                 refreshed_state is None
                 or refreshed_project is None
@@ -249,7 +227,7 @@ def generate_report():
                     "success": False,
                     "error": "The project graph changed while reporting was starting",
                 }), 409
-            if refreshed_updater is not None or (
+            if (refreshed_updater is not None and not refreshed_live_interview_ready) or (
                 refreshed_run_state is not None
                 and refreshed_run_state.runner_status in active_statuses
                 and not refreshed_live_interview_ready
@@ -332,6 +310,11 @@ def generate_report():
                         progress=0,
                         message=t('api.initReportAgent')
                     )
+
+                    # Drain the final graph batch in the worker, not in the
+                    # HTTP request, so the UI receives report_id immediately.
+                    if _drain_live_graph_ingestion(simulation_id, True) is not None:
+                        raise RuntimeError("Graph ingestion did not finish before reporting")
 
                     agent = ReportAgent(
                         graph_id=graph_id,

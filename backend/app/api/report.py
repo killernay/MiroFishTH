@@ -37,6 +37,19 @@ def _is_live_interview_ready(run_state, simulation_id: str) -> bool:
     return lifecycle.can_interview and lifecycle.can_report
 
 
+def _drain_live_graph_ingestion(simulation_id: str, live_interview_ready: bool):
+    """Drain the final activity batches before reporting a live completed run.
+
+    A run may be command-ready while its Zep updater still owns a small tail
+    queue.  Reporting must wait for that queue, but it must not require closing
+    OASIS first (Interview/Survey still need the live session).
+    """
+    updater = ZepGraphMemoryManager.get_updater(simulation_id)
+    if updater is not None and live_interview_ready:
+        ZepGraphMemoryManager.stop_updater(simulation_id)
+    return ZepGraphMemoryManager.get_updater(simulation_id)
+
+
 # ============== 报告生成接口 ==============
 
 @report_bp.route('/generate', methods=['POST'])
@@ -94,6 +107,17 @@ def generate_report():
         run_state = SimulationRunner.get_run_state(simulation_id)
         updater = ZepGraphMemoryManager.get_updater(simulation_id)
         live_interview_ready = _is_live_interview_ready(run_state, simulation_id)
+        try:
+            updater = _drain_live_graph_ingestion(
+                simulation_id, live_interview_ready
+            )
+        except Exception as exc:
+            logger.warning("Graph ingestion could not be drained before report: %s", exc)
+            return jsonify({
+                "success": False,
+                "error": "Graph ingestion is still active or incomplete; retry after it finishes",
+                "ingestion_pending": True,
+            }), 409
         active_statuses = {
             RunnerStatus.STARTING,
             RunnerStatus.RUNNING,
@@ -188,6 +212,17 @@ def generate_report():
             refreshed_live_interview_ready = _is_live_interview_ready(
                 refreshed_run_state, simulation_id
             )
+            try:
+                refreshed_updater = _drain_live_graph_ingestion(
+                    simulation_id, refreshed_live_interview_ready
+                )
+            except Exception as exc:
+                logger.warning("Graph ingestion became incomplete before report: %s", exc)
+                return jsonify({
+                    "success": False,
+                    "error": "Graph ingestion is still active or incomplete; retry after it finishes",
+                    "ingestion_pending": True,
+                }), 409
             if (
                 refreshed_state is None
                 or refreshed_project is None

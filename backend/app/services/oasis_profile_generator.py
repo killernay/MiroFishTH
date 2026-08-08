@@ -17,7 +17,7 @@ from datetime import datetime
 
 from openai import OpenAI
 from ..config import Config
-from ..utils.logger import get_logger
+from ..utils.logger import get_logger, redact_han_text
 from ..utils.locale import get_language_instruction, get_locale, set_locale, t
 from .generation_language import (
     GeneratedContentLanguageError,
@@ -1104,33 +1104,51 @@ class OasisProfileGenerator:
     def _print_generated_profile(self, entity_name: str, entity_type: str, profile: OasisAgentProfile):
         """实时输出生成的人设到控制台（完整内容，不截断）"""
         separator = "-" * 70
-        
+        is_thai = get_locale() == "th"
+        labels = {
+            "username": "ชื่อผู้ใช้" if is_thai else "Username",
+            "bio": "ประวัติย่อ" if is_thai else "Bio",
+            "persona": "บุคลิกโดยละเอียด" if is_thai else "Detailed persona",
+            "attributes": "คุณลักษณะพื้นฐาน" if is_thai else "Basic attributes",
+            "age": "อายุ" if is_thai else "Age",
+            "gender": "เพศ" if is_thai else "Gender",
+            "mbti": "MBTI",
+            "profession": "อาชีพ" if is_thai else "Profession",
+            "country": "ประเทศ" if is_thai else "Country",
+            "topics": "หัวข้อที่สนใจ" if is_thai else "Topics of interest",
+        }
+        missing = "ไม่ระบุ" if is_thai else "Not specified"
+        no_topics = "ไม่มี" if is_thai else "None"
+
         # 构建完整输出内容（不截断）
-        topics_str = ', '.join(profile.interested_topics) if profile.interested_topics else '无'
+        topics_str = ', '.join(profile.interested_topics) if profile.interested_topics else no_topics
+        value = lambda item: item if item is not None else missing
         
         output_lines = [
             f"\n{separator}",
             t('progress.profileGenerated', name=entity_name, type=entity_type),
             f"{separator}",
-            f"用户名: {profile.user_name}",
+            f"{labels['username']}: {profile.user_name}",
             f"",
-            f"【简介】",
+            f"[{labels['bio']}]",
             f"{profile.bio}",
             f"",
-            f"【详细人设】",
+            f"[{labels['persona']}]",
             f"{profile.persona}",
             f"",
-            f"【基本属性】",
-            f"年龄: {profile.age} | 性别: {profile.gender} | MBTI: {profile.mbti}",
-            f"职业: {profile.profession} | 国家: {profile.country}",
-            f"兴趣话题: {topics_str}",
+            f"[{labels['attributes']}]",
+            f"{labels['age']}: {value(profile.age)} | {labels['gender']}: {value(profile.gender)} | {labels['mbti']}: {value(profile.mbti)}",
+            f"{labels['profession']}: {value(profile.profession)} | {labels['country']}: {value(profile.country)}",
+            f"{labels['topics']}: {topics_str}",
             separator
         ]
         
         output = "\n".join(output_lines)
         
         # 只输出到控制台（避免重复，logger不再输出完整内容）
-        print(output)
+        # Profile fields can contain source-derived text.  Keep the profile
+        # data intact on disk, but never leak unmapped Han text into logs.
+        print(redact_han_text(output))
     
     def save_profiles(
         self,

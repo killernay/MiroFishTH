@@ -32,6 +32,26 @@ def test_live_completed_run_is_ready_for_interview_report(monkeypatch):
     assert report_api._is_live_interview_ready(run_state, "sim-1") is True
 
 
+def test_live_report_drains_final_graph_batches_without_closing_oasis(monkeypatch):
+    updater = object()
+    remaining = [updater, None]
+    stopped = []
+
+    monkeypatch.setattr(
+        report_api.ZepGraphMemoryManager,
+        "get_updater",
+        classmethod(lambda _cls, _simulation_id: remaining.pop(0)),
+    )
+    monkeypatch.setattr(
+        report_api.ZepGraphMemoryManager,
+        "stop_updater",
+        classmethod(lambda _cls, simulation_id: stopped.append(simulation_id)),
+    )
+
+    assert report_api._drain_live_graph_ingestion("sim-1", True) is None
+    assert stopped == ["sim-1"]
+
+
 def test_close_requires_completed_report():
     from app.api.simulation import _report_is_completed
 

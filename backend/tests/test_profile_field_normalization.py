@@ -103,3 +103,27 @@ def test_profile_fallbacks_are_localized_without_entity_summary():
     set_locale("th")
     assert "การสนทนา" in generator._fallback_bio()
     assert "การสนทนา" in generator._fallback_persona()
+
+
+def test_console_profile_output_uses_locale_labels_and_redacts_han(capsys):
+    set_locale("en")
+    generator = object.__new__(OasisProfileGenerator)
+    profile = OasisAgentProfile(
+        user_id=1,
+        user_name="teacher_927",
+        name="Teacher",
+        bio="Social discussion participant.",
+        persona="This account participates in social discussions.",
+        country="中国",
+        interested_topics=["教育"],
+    )
+
+    generator._print_generated_profile("Teacher", "Person", profile)
+    output = capsys.readouterr().out
+
+    assert "[Bio]" in output
+    assert "[Detailed persona]" in output
+    assert "[Basic attributes]" in output
+    assert "【基本属性】" not in output
+    assert "中国" not in output
+    assert "[source text]" in output

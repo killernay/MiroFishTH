@@ -324,6 +324,7 @@ import {
   getRunStatusDetail
 } from '../api/simulation'
 import { generateReport, checkReportStatus } from '../api/report'
+import { resumeSimulationEnvironment } from '../api/simulation'
 import { getSimulationCompletionState } from '../utils/simulationCompletion'
 
 const { t } = useI18n()
@@ -713,10 +714,27 @@ const handleNextStep = async () => {
   addLog(t('log.startingReportGen'))
   
   try {
-    const res = await generateReport({
-      simulation_id: props.simulationId,
-      force_regenerate: true
-    })
+    let res
+    try {
+      res = await generateReport({
+        simulation_id: props.simulationId,
+        force_regenerate: true
+      })
+    } catch (err) {
+      const apiError = err?.response?.data?.error || err?.message || ''
+      if (!/OASIS|environment.*(unavailable|not running)|simulation.*restart/i.test(apiError)) {
+        throw err
+      }
+      // A container restart can kill OASIS after the simulation actions have
+      // completed. Reopen the disposable IPC environment; never rerun actions.
+      addLog('OASIS is unavailable; reopening the completed simulation for report interviews...')
+      await resumeSimulationEnvironment(props.simulationId)
+      await new Promise(resolve => setTimeout(resolve, 1500))
+      res = await generateReport({
+        simulation_id: props.simulationId,
+        force_regenerate: true
+      })
+    }
     
     if (res.success && res.data) {
       const reportId = res.data.report_id

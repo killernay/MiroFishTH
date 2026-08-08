@@ -32,6 +32,11 @@ export const getSimulation = (simulationId) => {
   return service.get(`/api/simulation/${simulationId}`)
 }
 
+/** Reopen the completed run's OASIS IPC environment without replaying actions. */
+export const resumeSimulationEnvironment = (simulationId) => {
+  return service.post('/api/simulation/resume-env', { simulation_id: simulationId })
+}
+
 /**
  * 获取模拟的 Agent Profiles
  * @param {string} simulationId

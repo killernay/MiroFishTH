@@ -1371,6 +1371,12 @@ onUnmounted(() => {
   transition: all 0.2s ease;
 }
 
+/* Thai combining marks need a Thai-capable face and extra vertical room. */
+:global(html[lang='th']) .profile-card,
+:global(html[lang='th']) .agent-card {
+  font-family: 'Noto Sans Thai', 'Noto Sans', system-ui, sans-serif;
+}
+
 .profile-card:hover {
   border-color: #999;
   background: #FFF;
@@ -1387,6 +1393,8 @@ onUnmounted(() => {
   font-size: 14px;
   font-weight: 700;
   color: #000;
+  line-height: 1.6;
+  padding-block: 0.08em;
 }
 
 .profile-username {
@@ -1405,6 +1413,8 @@ onUnmounted(() => {
   background: #F0F0F0;
   padding: 2px 8px;
   border-radius: 3px;
+  line-height: 1.6;
+  padding-block: 0.16em;
 }
 
 .profile-bio {

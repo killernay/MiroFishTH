@@ -108,7 +108,7 @@
           <span>{{ $t('step3.awaitingFinishDescription') }}</span>
           <button
             class="action-btn secondary"
-            :disabled="isFinishing"
+            :disabled="isFinishing || !reportReady"
             @click="handleFinishSimulation"
           >
             {{ isFinishing ? $t('step3.finishingSimulation') : $t('step3.finishSimulation') }}
@@ -323,7 +323,7 @@ import {
   getRunStatus,
   getRunStatusDetail
 } from '../api/simulation'
-import { generateReport } from '../api/report'
+import { generateReport, checkReportStatus } from '../api/report'
 import { getSimulationCompletionState } from '../utils/simulationCompletion'
 
 const { t } = useI18n()
@@ -348,6 +348,7 @@ const router = useRouter()
 const isGeneratingReport = ref(false)
 const reportAutoStarted = ref(false)
 const phase = ref(0) // 0: 未开始, 1: 运行中, 2: 已完成
+const reportReady = ref(false)
 const isStarting = ref(false)
 const isStopping = ref(false)
 const isFinishing = ref(false)
@@ -396,6 +397,16 @@ const completionState = computed(() => getSimulationCompletionState(runStatus.va
 // Methods
 const addLog = (msg) => {
   emit('add-log', msg)
+}
+
+const refreshReportReady = async () => {
+  if (!props.simulationId) return
+  try {
+    const res = await checkReportStatus(props.simulationId)
+    reportReady.value = Boolean(res?.success && res?.data?.report_status === 'completed')
+  } catch {
+    reportReady.value = false
+  }
 }
 
 // 重置所有状态（用于重新启动模拟）
@@ -592,6 +603,7 @@ const fetchRunStatus = async () => {
         // Actions are complete, but OASIS is intentionally still alive for
         // Interview/Survey and live report generation.
         phase.value = 2
+        await refreshReportReady()
         emit('update-status', 'awaiting_finish')
       } else if (state === 'finishing') {
         emit('update-status', 'finishing')
@@ -770,6 +782,7 @@ const initOrResumeSimulation = async () => {
 
       if (['running', 'awaiting_finish', 'finishing'].includes(existingState)) {
         phase.value = existingState === 'awaiting_finish' ? 2 : 1
+        if (existingState === 'awaiting_finish') await refreshReportReady()
         emit('update-status', existingState === 'running' ? 'processing' : existingState)
         addLog(`Resuming existing simulation monitor (${existing.runner_status}).`)
         startStatusPolling()

@@ -42,6 +42,10 @@ export const getReport = (reportId) => {
   return service.get(`/api/report/${reportId}`)
 }
 
+export const checkReportStatus = (simulationId) => {
+  return service.get(`/api/report/check/${simulationId}`)
+}
+
 /**
  * 与 Report Agent 对话
  * @param {Object} data - { simulation_id, message, chat_history? }

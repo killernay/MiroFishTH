@@ -32,6 +32,13 @@ def test_live_completed_run_is_ready_for_interview_report(monkeypatch):
     assert report_api._is_live_interview_ready(run_state, "sim-1") is True
 
 
+def test_close_requires_completed_report():
+    from app.api.simulation import _report_is_completed
+
+    assert _report_is_completed(SimpleNamespace(status="planning")) is False
+    assert _report_is_completed(SimpleNamespace(status="completed")) is True
+
+
 def _json_result(result):
     if isinstance(result, tuple):
         response, status = result

@@ -36,6 +36,14 @@ def _has_active_report_task(simulation_id: str) -> bool:
     )
 
 
+def _report_is_completed(report) -> bool:
+    return bool(
+        report
+        and getattr(getattr(report, "status", None), "value", report.status)
+        == "completed"
+    )
+
+
 def _get_default_platform(simulation_id: str) -> str:
     """
     根据模拟配置返回默认平台
@@ -2861,6 +2869,13 @@ def close_simulation_env():
             return jsonify({
                 "success": False,
                 "error": t("api.reportInProgressCannotClose"),
+            }), 409
+
+        from ..services.report_agent import ReportManager
+        if not _report_is_completed(ReportManager.get_report_by_simulation(simulation_id)):
+            return jsonify({
+                "success": False,
+                "error": t("api.finishRequiresCompletedReport"),
             }), 409
         
         result = SimulationRunner.close_simulation_env(

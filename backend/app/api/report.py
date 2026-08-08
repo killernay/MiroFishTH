@@ -155,6 +155,18 @@ def generate_report():
                     "before generating a report"
                 ),
             }), 409
+        if (
+            run_state.runner_status in successful_terminal_statuses
+            and not live_interview_ready
+        ):
+            return jsonify({
+                "success": False,
+                "error": (
+                    "The OASIS environment is unavailable for Interview. "
+                    "Restart this simulation before generating the report."
+                ),
+                "oasis_unavailable": True,
+            }), 409
 
         # 获取项目信息
         project = ProjectManager.get_project(state.project_id)
@@ -263,6 +275,18 @@ def generate_report():
                         "A successfully completed or stopped simulation is "
                         "required before generating a report"
                     ),
+                }), 409
+            if (
+                refreshed_run_state.runner_status in successful_terminal_statuses
+                and not refreshed_live_interview_ready
+            ):
+                return jsonify({
+                    "success": False,
+                    "error": (
+                        "The OASIS environment became unavailable for Interview. "
+                        "Restart this simulation before generating the report."
+                    ),
+                    "oasis_unavailable": True,
                 }), 409
 
             # Cached-report reuse is now part of the same atomic barrier, so a

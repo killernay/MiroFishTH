@@ -190,6 +190,46 @@ def test_failed_ingestion_cannot_generate_a_report_after_restart(monkeypatch):
     assert "successfully completed" in body["error"]
 
 
+def test_completed_run_without_oasis_is_rejected_before_report_generation(monkeypatch):
+    simulation = SimpleNamespace(project_id="proj-1", graph_id="graph-1")
+    monkeypatch.setattr(
+        report_api,
+        "SimulationManager",
+        lambda: SimpleNamespace(get_simulation=lambda _simulation_id: simulation),
+    )
+    monkeypatch.setattr(
+        report_api.ReportManager,
+        "get_report_by_simulation",
+        classmethod(lambda _cls, _simulation_id: None),
+    )
+    monkeypatch.setattr(
+        report_api.SimulationRunner,
+        "get_run_state",
+        classmethod(lambda _cls, _simulation_id: SimpleNamespace(
+            runner_status=RunnerStatus.COMPLETED,
+        )),
+    )
+    monkeypatch.setattr(
+        report_api.SimulationRunner,
+        "check_env_alive",
+        classmethod(lambda _cls, _simulation_id: False),
+    )
+    monkeypatch.setattr(
+        report_api.ZepGraphMemoryManager,
+        "get_updater",
+        classmethod(lambda _cls, _simulation_id: None),
+    )
+
+    app = Flask(__name__)
+    with app.test_request_context(
+        "/api/report/generate", method="POST", json={"simulation_id": "sim-1"}
+    ):
+        body, status = _json_result(report_api.generate_report())
+
+    assert status == 409
+    assert body["oasis_unavailable"] is True
+
+
 def test_report_reader_lease_blocks_graph_start_and_delete(monkeypatch):
     simulation = SimpleNamespace(
         simulation_id="sim-1",
@@ -263,6 +303,11 @@ def test_report_reader_lease_blocks_graph_start_and_delete(monkeypatch):
         report_api.SimulationRunner,
         "get_run_state",
         classmethod(lambda _cls, _simulation_id: run_state),
+    )
+    monkeypatch.setattr(
+        report_api.SimulationRunner,
+        "check_env_alive",
+        classmethod(lambda _cls, _simulation_id: True),
     )
     monkeypatch.setattr(
         report_api.ZepGraphMemoryManager,

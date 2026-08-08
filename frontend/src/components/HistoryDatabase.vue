@@ -423,8 +423,10 @@ const goToProject = () => {
 // 导航到环境配置页面（Simulation）
 const goToSimulation = () => {
   if (selectedProject.value?.simulation_id) {
+    const isCompleted = selectedProject.value.runner_status === 'completed'
+      || selectedProject.value.runner_status === 'stopped'
     router.push({
-      name: 'Simulation',
+      name: isCompleted ? 'SimulationRun' : 'Simulation',
       params: { simulationId: selectedProject.value.simulation_id }
     })
     closeModal()

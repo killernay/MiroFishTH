@@ -35,6 +35,7 @@ from .zep_tools import (
     InterviewResult
 )
 from .evidence_ledger import EvidenceLedger
+from .generated_output_policy import validate_generated
 
 logger = get_logger('mirofish.report_agent')
 
@@ -1008,7 +1009,7 @@ class ReportAgent:
             if self._validated_evidence_text(match.group(1)) is None:
                 raise GeneratedContentLanguageError(t('api.reportGenerateFailed'))
         generated_prose = _SOURCE_EVIDENCE_PATTERN.sub("", text)
-        validate_generated_content(generated_prose, locale=get_locale())
+        validate_generated(generated_prose, locale=get_locale())
 
     def _remember_source_evidence(self, result: str) -> None:
         if result:
@@ -1028,7 +1029,7 @@ class ReportAgent:
         """Only recover when non-evidence prose already matches the run locale."""
         generated_prose = _SOURCE_EVIDENCE_PATTERN.sub("", text)
         try:
-            validate_generated_content(generated_prose, locale=get_locale())
+            validate_generated(generated_prose, locale=get_locale())
         except GeneratedContentLanguageError:
             return False
         return any(
@@ -1353,7 +1354,7 @@ class ReportAgent:
                 temperature=0.3
             )
             try:
-                validate_generated_content(response, locale=get_locale())
+                validate_generated(response, locale=get_locale())
             except GeneratedContentLanguageError:
                 response = self.llm.chat_json(
                     messages=[
@@ -1365,7 +1366,7 @@ class ReportAgent:
                     ],
                     temperature=0.3,
                 )
-                validate_generated_content(response, locale=get_locale())
+                validate_generated(response, locale=get_locale())
             
             if progress_callback:
                 progress_callback("planning", 80, t('progress.parsingOutline'))

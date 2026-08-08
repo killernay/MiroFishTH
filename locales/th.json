@@ -183,6 +183,10 @@
     "generating": "กำลังสร้าง"
   },
   "step3": {
+    "readyToStartSimulation": "การจำลองพร้อมเริ่มต้น",
+    "startSimulationDescription": "ยังไม่มีกระบวนการจำลองกำลังทำงาน กดเริ่มเมื่อพร้อมเท่านั้น เพราะจะเริ่ม run ใหม่",
+    "startSimulation": "เริ่มการจำลอง",
+    "startingSimulation": "กำลังเริ่มการจำลอง...",
     "startGenerateReport": "สร้างรายงาน",
     "generatingReport": "กำลังเริ่ม...",
     "waitingForActions": "กำลังรอการดำเนินการของตัวแทน...",
@@ -467,6 +471,7 @@
     "preparingScripts": "กำลังเตรียมสคริปต์"
   },
   "log": {
+    "simulationReadyToStart": "การจำลองพร้อมแล้ว โปรดกดเริ่มเองเมื่อคุณพร้อม",
     "preparingGoBack": "เตรียมกลับเข้าสู่ขั้นตอนที่ 2 ปิดการจำลอง...",
     "closingSimEnv": "กำลังปิดสภาพแวดล้อมการจำลอง...",
     "simEnvClosed": "✓ ปิดสภาพแวดล้อมการจำลองแล้ว",

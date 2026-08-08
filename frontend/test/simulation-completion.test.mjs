@@ -51,11 +51,21 @@ test('shows finalization while an explicit finish request is closing the environ
   )
 })
 
-test('starts a new simulation instead of monitoring an idle placeholder run', () => {
+test('marks an idle placeholder run as not started', () => {
   assert.equal(
     getSimulationCompletionState({ runner_status: 'idle' }),
     'not_started'
   )
+})
+
+test('requires an explicit start action for an idle placeholder run', async () => {
+  const component = await readFile(
+    new URL('frontend/src/components/Step3Simulation.vue', repoRoot),
+    'utf8'
+  )
+
+  assert.match(component, /completionState === 'not_started'/)
+  assert.match(component, /@click="doStartSimulation"/)
 })
 
 test('requires an explicit confirmation before closing the interview environment', async () => {

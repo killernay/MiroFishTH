@@ -177,6 +177,10 @@
     "generating": "Generating"
   },
   "step3": {
+    "readyToStartSimulation": "Simulation is ready to start",
+    "startSimulationDescription": "No simulation process is running. Start only when you are ready; this will begin a new run.",
+    "startSimulation": "Start simulation",
+    "startingSimulation": "Starting simulation...",
     "startGenerateReport": "Generate Report",
     "generatingReport": "Starting...",
     "waitingForActions": "Waiting for agent actions...",
@@ -461,6 +465,7 @@
     "preparingScripts": "Preparing Scripts"
   },
   "log": {
+    "simulationReadyToStart": "Simulation is ready. Start it manually when you are ready.",
     "preparingGoBack": "Preparing to return to Step 2, closing simulation...",
     "closingSimEnv": "Closing simulation environment...",
     "simEnvClosed": "✓ Simulation environment closed",

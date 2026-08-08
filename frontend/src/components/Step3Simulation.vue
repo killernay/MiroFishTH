@@ -91,7 +91,19 @@
       </div>
 
       <div class="action-controls">
-        <div v-if="completionState === 'awaiting_finish'" class="completion-notice">
+        <div v-if="completionState === 'not_started'" class="completion-notice">
+          <strong>{{ $t('step3.readyToStartSimulation') }}</strong>
+          <span>{{ $t('step3.startSimulationDescription') }}</span>
+          <button
+            class="action-btn primary"
+            :disabled="isStarting"
+            @click="doStartSimulation"
+          >
+            <span v-if="isStarting" class="loading-spinner-small"></span>
+            {{ isStarting ? $t('step3.startingSimulation') : $t('step3.startSimulation') }}
+          </button>
+        </div>
+        <div v-else-if="completionState === 'awaiting_finish'" class="completion-notice">
           <strong>{{ $t('step3.actionsCompleted') }}</strong>
           <span>{{ $t('step3.awaitingFinishDescription') }}</span>
           <button
@@ -730,6 +742,13 @@ const initOrResumeSimulation = async () => {
         return
       }
 
+      if (existingState === 'not_started') {
+        phase.value = 0
+        emit('update-status', 'ready')
+        addLog(t('log.simulationReadyToStart'))
+        return
+      }
+
       if (['running', 'awaiting_finish', 'finishing'].includes(existingState)) {
         phase.value = 1
         emit('update-status', existingState === 'running' ? 'processing' : existingState)
@@ -743,7 +762,9 @@ const initOrResumeSimulation = async () => {
     addLog(`Run status check failed, starting a new simulation: ${err.message}`)
   }
 
-  await doStartSimulation()
+  phase.value = 0
+  emit('update-status', 'ready')
+  addLog(t('log.simulationReadyToStart'))
 }
 
 onMounted(() => {

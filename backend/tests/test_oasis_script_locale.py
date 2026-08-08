@@ -77,6 +77,13 @@ def test_parallel_script_uses_environment_locale_when_legacy_config_has_no_local
     assert module.system_message("Simulation complete", "การจำลองเสร็จสมบูรณ์") == "การจำลองเสร็จสมบูรณ์"
 
 
+def test_resumed_interview_reads_resume_database(monkeypatch):
+    module = _load_script(monkeypatch, "run_parallel_simulation.py")
+    source = (SCRIPTS_DIR / "run_parallel_simulation.py").read_text(encoding="utf-8")
+    assert 'f"{platform}_resume.db"' in source
+    assert "resume_db_path if os.path.exists(resume_db_path)" in source
+
+
 @pytest.mark.parametrize(
     "filename",
     ["run_parallel_simulation.py", "run_twitter_simulation.py", "run_reddit_simulation.py"],

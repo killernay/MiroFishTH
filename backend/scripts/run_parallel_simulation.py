@@ -596,7 +596,12 @@ class ParallelIPCHandler:
     
     def _get_interview_result(self, agent_id: int, platform: str) -> Dict[str, Any]:
         """从数据库获取最新的Interview结果"""
-        db_path = os.path.join(self.simulation_dir, f"{platform}_simulation.db")
+        # A resumed OASIS session writes interview traces to its disposable
+        # resume database. Prefer it when present; otherwise use the original
+        # simulation database for normal runs.
+        resume_db_path = os.path.join(self.simulation_dir, f"{platform}_resume.db")
+        original_db_path = os.path.join(self.simulation_dir, f"{platform}_simulation.db")
+        db_path = resume_db_path if os.path.exists(resume_db_path) else original_db_path
         
         result = {
             "agent_id": agent_id,

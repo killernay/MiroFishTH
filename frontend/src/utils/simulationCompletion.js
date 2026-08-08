@@ -11,6 +11,7 @@ const allEnabledPlatformsCompleted = (runStatus) => {
 }
 
 export const getSimulationCompletionState = (runStatus = {}) => {
+  if (runStatus.runner_status === 'idle') return 'not_started'
   if (runStatus.runner_status === 'failed') return 'failed'
   if (isTerminalStatus(runStatus.runner_status)) return 'report_ready'
   if (runStatus.runner_status === 'stopping') return 'finishing'

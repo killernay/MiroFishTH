@@ -371,6 +371,8 @@
     "requireProjectId": "โปรดระบุ project_id",
     "configError": "ข้อผิดพลาดในการกำหนดค่า: {details}",
     "zepApiKeyMissing": "ZEP_API_KEY ไม่ได้กำหนดค่า",
+    "reportInProgressCannotClose": "ยังมีการสร้างรายงานของการจำลองนี้อยู่ กรุณารอให้เสร็จหรือยกเลิกก่อนปิด",
+    "finishRequiresCompletedReport": "ต้องสร้างรายงานให้เสร็จก่อนจึงจะจบการจำลองนี้ได้",
     "ontologyNotGenerated": "Ontology ยังไม่ได้สร้าง กรุณาโทร /ontology/generate ก่อน",
     "graphBuilding": "อยู่ระหว่างการสร้างกราฟ อย่าส่งอีกครั้ง หากต้องการบังคับให้สร้างใหม่ ให้เพิ่ม force: true",
     "textNotFound": "ไม่พบเนื้อหาข้อความที่แยกออกมา",
@@ -670,6 +672,7 @@
     "redirectToInsightForge": "get_simulation_context เปลี่ยนเส้นทางไปที่ Insight_forge"
   },
   "console": {
+    "zepApiKeyMissing": "ZEP_API_KEY ไม่ได้กำหนดค่า",
     "backendStarting": "กำลังเริ่ม MiroFish Backend...",
     "simulationCleanupRegistered": "ลงทะเบียนตัวจัดการทำความสะอาดกระบวนการจำลองแล้ว",
     "httpRequest": "คำขอ: {method} {path}",

@@ -371,6 +371,8 @@
     "requireProjectId": "Please provide project_id",
     "configError": "Configuration error: {details}",
     "zepApiKeyMissing": "ZEP_API_KEY not configured",
+    "reportInProgressCannotClose": "A report is still being generated for this simulation. Wait for it to finish or cancel it before closing.",
+    "finishRequiresCompletedReport": "Generate a completed report before finishing this simulation.",
     "ontologyNotGenerated": "Ontology not yet generated. Please call /ontology/generate first.",
     "graphBuilding": "Graph build in progress. Do not resubmit. To force rebuild, add force: true.",
     "textNotFound": "Extracted text content not found",
@@ -670,6 +672,7 @@
     "redirectToInsightForge": "get_simulation_context redirected to insight_forge"
   },
   "console": {
+    "zepApiKeyMissing": "ZEP_API_KEY not configured",
     "backendStarting": "MiroFish Backend starting...",
     "simulationCleanupRegistered": "Simulation process cleanup handler registered",
     "httpRequest": "Request: {method} {path}",

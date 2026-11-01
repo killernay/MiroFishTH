@@ -180,7 +180,13 @@
     "genderOther": "อื่น",
     "yearsOld": "อายุปี",
     "initializing": "กำลังเริ่มต้น",
-    "generating": "กำลังสร้าง"
+    "generating": "กำลังสร้าง",
+    "stages": {
+      "reading": "กำลังอ่านเอนทิตีจากกราฟ",
+      "generating_profiles": "กำลังสร้างบุคลิกของเอเจนต์",
+      "generating_config": "กำลังสร้างการตั้งค่าการจำลอง",
+      "copying_scripts": "กำลังเตรียมสคริปต์การจำลอง"
+    }
   },
   "step3": {
     "readyToStartSimulation": "การจำลองพร้อมเริ่มต้น",
@@ -270,7 +276,9 @@
     "panelRelatedEdges": "ขอบที่เกี่ยวข้อง",
     "panelRelatedNodes": "โหนดที่เกี่ยวข้อง",
     "world1": "โลก 1",
-    "world2": "โลก 2"
+    "world2": "โลก 2",
+    "selectionReason": "เหตุผลในการคัดเลือก",
+    "waitingToStart": "รอเริ่มต้น"
   },
   "step5": {
     "interactiveTools": "เครื่องมือแบบโต้ตอบ",
@@ -305,11 +313,11 @@
     "errorOccurred": "ขออภัย เกิดข้อผิดพลาด: {error}",
     "noResponse": "ไม่มีการตอบสนอง",
     "requestFailed": "คำขอล้มเหลว",
-    "selectAgentFirst": "โปรดเลือกบุคคลจำลองก่อน"
-    ,"chatHistoryUser": "ผู้ใช้"
-    ,"chatHistoryAssistant": "ผู้ช่วย"
-    ,"chatHistoryIntro": "นี่คือบทสนทนาก่อนหน้านี้:"
-    ,"chatHistoryNewQuestion": "คำถามใหม่ของฉันคือ: {message}"
+    "selectAgentFirst": "โปรดเลือกบุคคลจำลองก่อน",
+    "chatHistoryUser": "ผู้ใช้",
+    "chatHistoryAssistant": "ผู้ช่วย",
+    "chatHistoryIntro": "นี่คือบทสนทนาก่อนหน้านี้:",
+    "chatHistoryNewQuestion": "คำถามใหม่ของฉันคือ: {message}"
   },
   "graph": {
     "panelTitle": "การแสดงความสัมพันธ์กราฟ",
@@ -322,7 +330,8 @@
     "graphDataLoading": "กำลังโหลดข้อมูลกราฟ...",
     "waitingOntology": "กำลังรอการสร้างออนโทโลยี...",
     "toggleMaximize": "ขยายใหญ่สุด/คืนค่า",
-    "closeHint": "ปิดคำใบ้"
+    "closeHint": "ปิดคำใบ้",
+    "buildTaskName": "สร้างกราฟ: {name}"
   },
   "history": {
     "title": "ประวัติการจำลอง",
@@ -346,6 +355,12 @@
     "unknownFile": "ไฟล์ที่ไม่รู้จัก"
   },
   "api": {
+    "simDirNotExist": "ไม่พบไดเรกทอรีการจำลอง",
+    "simMissingRequiredFiles": "ไฟล์ที่จำเป็นขาดหายไป",
+    "simStatusNotPrepared": "สถานะไม่อยู่ในรายการที่เตรียมพร้อมแล้ว หรือ config_generated เป็น false: status={status}, config_generated={config_generated}",
+    "simReadStateFailed": "อ่านไฟล์สถานะไม่สำเร็จ: {error}",
+    "simPrepareFailedDefault": "การเตรียมการจำลองล้มเหลว",
+    "simUnknownFile": "ไฟล์ที่ไม่รู้จัก",
     "projectNotFound": "ไม่พบโครงการ: {id}",
     "projectDeleteFailed": "ไม่พบโครงการหรือการลบล้มเหลว: {id}",
     "projectDeleted": "ลบโปรเจ็กต์แล้ว: {id}",
@@ -381,6 +396,8 @@
     "scriptFileNotFound": "ไม่พบไฟล์สคริปต์: {name}",
     "requireGraphId": "กรุณาระบุGraph_id",
     "noMatchingEntities": "ไม่พบเอนทิตีที่ตรงกัน",
+    "noQualifiedEntities": "ไม่พบเอนทิตีที่ตรงตามเงื่อนไข กรุณาตรวจสอบว่าสร้างกราฟถูกต้องแล้ว",
+    "runInstructions": "1. เปิดใช้งานสภาพแวดล้อม conda: conda activate MiroFish\n2. รันการจำลอง (สคริปต์อยู่ที่ {scripts_dir}):\n   - รันเฉพาะ Twitter: python {scripts_dir}/run_twitter_simulation.py --config {config_path}\n   - รันเฉพาะ Reddit: python {scripts_dir}/run_reddit_simulation.py --config {config_path}\n   - รันทั้งสองแพลตฟอร์มพร้อมกัน: python {scripts_dir}/run_parallel_simulation.py --config {config_path}",
     "maxRoundsPositive": "max_rounds ต้องเป็นจำนวนเต็มบวก",
     "maxRoundsInvalid": "max_rounds ต้องเป็นจำนวนเต็มที่ถูกต้อง",
     "invalidPlatform": "ประเภทแพลตฟอร์มไม่ถูกต้อง: {platform} ตัวเลือก: twitter/reddit/parallel",
@@ -417,6 +434,10 @@
     "envNotRunningShort": "สภาพแวดล้อมไม่ทำงานหรือปิด",
     "requireGraphIdAndQuery": "โปรดระบุ graph_id และแบบสอบถาม",
     "initReportAgent": "กำลังเริ่มต้นตัวแทนรายงาน..."
+  },
+  "simConfig": {
+    "defaultTimeReasoning": "ใช้การตั้งค่าเวลาเริ่มต้นตามกิจวัตรประจำวันของผู้ใช้ในประเทศไทย เวลา Asia/Bangkok (UTC+7) (รอบละ 1 ชั่วโมง)",
+    "defaultEventReasoning": "ใช้การตั้งค่าเหตุการณ์เริ่มต้น"
   },
   "progress": {
     "initGraphService": "กำลังเริ่มต้นบริการสร้างกราฟ...",
@@ -475,6 +496,7 @@
     "agentConfigResult": "การกำหนดค่าตัวแทน: สร้าง {count} แล้ว",
     "postAssignResult": "การมอบหมายโพสต์: {count} โพสต์ที่ได้รับมอบหมาย",
     "profileGenerated": "[สร้าง] {name} ({type})",
+    "profileGeneratedCount": "เสร็จแล้ว {current}/{total}: {name} ({entity_type})",
     "readingGraphEntities": "การอ่านเอนทิตีกราฟ",
     "generatingProfiles": "การสร้างโปรไฟล์ตัวแทน",
     "generatingSimConfig": "กำลังสร้างการกำหนดค่าการจำลอง",
@@ -779,6 +801,31 @@
     "waitingGraphData": "กำลังรอข้อมูลกราฟ...",
     "unnamed": "ไม่มีชื่อ",
     "unknown": "ไม่ทราบ"
+  },
+  "runner": {
+    "alreadyActive": "การจำลองกำลังทำงานหรือกำลังปิดงานอยู่แล้ว: {simulationId}",
+    "configMissing": "ไม่พบการตั้งค่าการจำลอง กรุณาเรียก /prepare ก่อน",
+    "configNotFound": "ไม่พบการตั้งค่าการจำลอง: {simulationId}",
+    "deleteFailed": "ลบ {target} ไม่สำเร็จ: {error}",
+    "envAlreadyClosed": "สภาพแวดล้อมปิดไปแล้ว",
+    "envCloseSent": "ส่งคำสั่งปิดสภาพแวดล้อมแล้ว",
+    "envCloseSentTimeout": "ส่งคำสั่งปิดสภาพแวดล้อมแล้ว (หมดเวลารอการตอบกลับ สภาพแวดล้อมอาจกำลังปิดอยู่)",
+    "envNotRunning": "สภาพแวดล้อมการจำลองไม่ได้ทำงานหรือปิดไปแล้ว จึงสัมภาษณ์ไม่ได้: {simulationId}",
+    "graphCleanupFailed": "ล้างการเขียนกราฟ Zep ไม่สำเร็จ: {error}",
+    "graphIdRequired": "ต้องระบุ graph_id เมื่อเปิดใช้การอัปเดตหน่วยความจำกราฟ",
+    "graphUpdaterInitFailed": "เริ่มต้นตัวอัปเดตกราฟ Zep ไม่สำเร็จ: {error}",
+    "graphWriteIncomplete": "การเขียนกราฟ Zep ยังไม่เสร็จสมบูรณ์: {error}",
+    "logCloseFailed": "ปิดไฟล์บันทึกไม่สำเร็จ: {error}",
+    "noAgents": "การตั้งค่าการจำลองไม่มีเอเจนต์: {simulationId}",
+    "nothingToClean": "ไม่มีไดเรกทอรีการจำลอง จึงไม่มีอะไรต้องล้าง",
+    "notRunning": "การจำลองไม่ได้ทำงานอยู่: {simulationId}, status={status}",
+    "processExited": "โปรเซสจบการทำงานด้วยรหัส {exitCode} ข้อผิดพลาด: {errorInfo}",
+    "processTerminateFailed": "ยุติโปรเซสย่อยไม่สำเร็จ: {error}",
+    "scriptNotFound": "ไม่พบสคริปต์: {path}",
+    "simulationNotFound": "ไม่พบการจำลอง: {simulationId}",
+    "stopFailed": "หยุดการจำลองไม่สำเร็จ",
+    "stopNotTerminal": "การจำลองยังไม่เข้าสู่สถานะสิ้นสุดหลังสั่งหยุด: {simulationId}, status={status}",
+    "stopPending": "การจำลองยังอยู่ระหว่างหยุด: การเขียนกราฟไม่เสร็จภายใน {seconds} วินาที"
   },
   "runnerLogs": {
     "terminateWindowsTree": "กำลังยุติแผนผังกระบวนการ (Windows): simulation={simulationId}, pid={pid}",

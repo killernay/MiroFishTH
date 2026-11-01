@@ -75,7 +75,13 @@
     "layoutGraph": "Graph",
     "layoutSplit": "Split",
     "layoutWorkbench": "Workbench",
-    "stepNames": ["Graph Build", "Env Setup", "Run Simulation", "Report Generation", "Deep Interaction"]
+    "stepNames": [
+      "Graph Build",
+      "Env Setup",
+      "Run Simulation",
+      "Report Generation",
+      "Deep Interaction"
+    ]
   },
   "step1": {
     "ontologyGeneration": "Ontology Generation",
@@ -174,7 +180,13 @@
     "genderOther": "Other",
     "yearsOld": "years old",
     "initializing": "Initializing",
-    "generating": "Generating"
+    "generating": "Generating",
+    "stages": {
+      "reading": "Reading graph entities",
+      "generating_profiles": "Generating agent personas",
+      "generating_config": "Generating simulation config",
+      "copying_scripts": "Preparing simulation scripts"
+    }
   },
   "step3": {
     "readyToStartSimulation": "Simulation is ready to start",
@@ -264,7 +276,9 @@
     "panelRelatedEdges": "Related Edges",
     "panelRelatedNodes": "Related Nodes",
     "world1": "World 1",
-    "world2": "World 2"
+    "world2": "World 2",
+    "selectionReason": "Selection reason",
+    "waitingToStart": "Waiting to start"
   },
   "step5": {
     "interactiveTools": "Interactive Tools",
@@ -299,11 +313,11 @@
     "errorOccurred": "Sorry, an error occurred: {error}",
     "noResponse": "No response",
     "requestFailed": "Request failed",
-    "selectAgentFirst": "Please select a simulated individual first"
-    ,"chatHistoryUser": "User"
-    ,"chatHistoryAssistant": "Assistant"
-    ,"chatHistoryIntro": "Here is our previous conversation:"
-    ,"chatHistoryNewQuestion": "My new question is: {message}"
+    "selectAgentFirst": "Please select a simulated individual first",
+    "chatHistoryUser": "User",
+    "chatHistoryAssistant": "Assistant",
+    "chatHistoryIntro": "Here is our previous conversation:",
+    "chatHistoryNewQuestion": "My new question is: {message}"
   },
   "graph": {
     "panelTitle": "Graph Relationship Visualization",
@@ -316,7 +330,8 @@
     "graphDataLoading": "Loading graph data...",
     "waitingOntology": "Waiting for ontology generation...",
     "toggleMaximize": "Maximize/Restore",
-    "closeHint": "Close hint"
+    "closeHint": "Close hint",
+    "buildTaskName": "Build graph: {name}"
   },
   "history": {
     "title": "Simulation History",
@@ -340,6 +355,12 @@
     "unknownFile": "Unknown file"
   },
   "api": {
+    "simDirNotExist": "Simulation directory does not exist",
+    "simMissingRequiredFiles": "Missing required files",
+    "simStatusNotPrepared": "Status is not in the prepared list or config_generated is false: status={status}, config_generated={config_generated}",
+    "simReadStateFailed": "Failed to read state file: {error}",
+    "simPrepareFailedDefault": "Simulation preparation failed",
+    "simUnknownFile": "Unknown file",
     "projectNotFound": "Project not found: {id}",
     "projectDeleteFailed": "Project not found or deletion failed: {id}",
     "projectDeleted": "Project deleted: {id}",
@@ -375,6 +396,8 @@
     "scriptFileNotFound": "Script file not found: {name}",
     "requireGraphId": "Please provide graph_id",
     "noMatchingEntities": "No matching entities found",
+    "noQualifiedEntities": "No qualifying entities were found. Please check that the graph was built correctly.",
+    "runInstructions": "1. Activate the conda environment: conda activate MiroFish\n2. Run the simulation (scripts are in {scripts_dir}):\n   - Twitter only: python {scripts_dir}/run_twitter_simulation.py --config {config_path}\n   - Reddit only: python {scripts_dir}/run_reddit_simulation.py --config {config_path}\n   - Both platforms in parallel: python {scripts_dir}/run_parallel_simulation.py --config {config_path}",
     "maxRoundsPositive": "max_rounds must be a positive integer",
     "maxRoundsInvalid": "max_rounds must be a valid integer",
     "invalidPlatform": "Invalid platform type: {platform}. Options: twitter/reddit/parallel",
@@ -411,6 +434,10 @@
     "envNotRunningShort": "Environment not running or closed",
     "requireGraphIdAndQuery": "Please provide graph_id and query",
     "initReportAgent": "Initializing Report Agent..."
+  },
+  "simConfig": {
+    "defaultTimeReasoning": "Default time configuration based on the target audience's local daily routine (1 hour per round)",
+    "defaultEventReasoning": "Default event configuration used"
   },
   "progress": {
     "initGraphService": "Initializing graph build service...",
@@ -469,6 +496,7 @@
     "agentConfigResult": "Agent Config: {count} generated",
     "postAssignResult": "Post Assignment: {count} posts assigned",
     "profileGenerated": "[Generated] {name} ({type})",
+    "profileGeneratedCount": "Completed {current}/{total}: {name} ({entity_type})",
     "readingGraphEntities": "Reading Graph Entities",
     "generatingProfiles": "Generating Agent Profiles",
     "generatingSimConfig": "Generating Simulation Config",
@@ -773,6 +801,31 @@
     "waitingGraphData": "Waiting for graph data...",
     "unnamed": "Unnamed",
     "unknown": "Unknown"
+  },
+  "runner": {
+    "alreadyActive": "Simulation is already running or finishing: {simulationId}",
+    "configMissing": "Simulation config not found. Call /prepare first.",
+    "configNotFound": "Simulation config not found: {simulationId}",
+    "deleteFailed": "Failed to delete {target}: {error}",
+    "envAlreadyClosed": "Environment is already closed",
+    "envCloseSent": "Environment close command sent",
+    "envCloseSentTimeout": "Environment close command sent (timed out waiting for a response; the environment may be shutting down)",
+    "envNotRunning": "Simulation environment is not running or has closed, so interviews cannot run: {simulationId}",
+    "graphCleanupFailed": "Failed to clean up Zep graph writes: {error}",
+    "graphIdRequired": "graph_id is required when graph memory updates are enabled",
+    "graphUpdaterInitFailed": "Failed to initialize the Zep graph updater: {error}",
+    "graphWriteIncomplete": "Zep graph writes did not fully complete: {error}",
+    "logCloseFailed": "Failed to close the log file: {error}",
+    "noAgents": "Simulation config has no agents: {simulationId}",
+    "nothingToClean": "Simulation directory does not exist; nothing to clean up",
+    "notRunning": "Simulation is not running: {simulationId}, status={status}",
+    "processExited": "Process exited with code {exitCode}. Error: {errorInfo}",
+    "processTerminateFailed": "Failed to terminate the subprocess: {error}",
+    "scriptNotFound": "Script not found: {path}",
+    "simulationNotFound": "Simulation not found: {simulationId}",
+    "stopFailed": "Failed to stop the simulation",
+    "stopNotTerminal": "Simulation did not reach a final state after stopping: {simulationId}, status={status}",
+    "stopPending": "Simulation is still stopping; graph writes did not finish within {seconds}s"
   },
   "runnerLogs": {
     "terminateWindowsTree": "Terminating process tree (Windows): simulation={simulationId}, pid={pid}",

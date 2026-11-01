@@ -49,7 +49,7 @@
         />
       </div>
 
-      <!-- Right Panel: Step4 报告生成 -->
+      <!-- Right Panel: Step4 Report Generation -->
       <div class="panel-wrapper right" :style="rightPanelStyle">
         <Step4Report
           :reportId="currentReportId"
@@ -83,7 +83,7 @@ const props = defineProps({
   reportId: String
 })
 
-// Layout State - 默认切换到工作台视角
+// Layout State - switch to workbench view by default
 const viewMode = ref('workbench')
 
 // Data State
@@ -146,19 +146,19 @@ const loadReportData = async () => {
   try {
     addLog(t('log.loadReportData', { id: currentReportId.value }))
 
-    // 获取 report 信息以获取 simulation_id
+    // Fetch report info to get simulation_id
     const reportRes = await getReport(currentReportId.value)
     if (reportRes.success && reportRes.data) {
       const reportData = reportRes.data
       simulationId.value = reportData.simulation_id
 
       if (simulationId.value) {
-        // 获取 simulation 信息
+        // Fetch simulation info
         const simRes = await getSimulation(simulationId.value)
         if (simRes.success && simRes.data) {
           const simData = simRes.data
 
-          // 获取 project 信息
+          // Fetch project info
           if (simData.project_id) {
             const projRes = await getProject(simData.project_id)
             if (projRes.success && projRes.data) {
@@ -224,7 +224,7 @@ onMounted(() => {
   flex-direction: column;
   background: #FFF;
   overflow: hidden;
-  font-family: 'Space Grotesk', 'Noto Sans SC', system-ui, sans-serif;
+  font-family: 'Space Grotesk', 'Noto Sans Thai', system-ui, sans-serif;
 }
 
 /* Header */

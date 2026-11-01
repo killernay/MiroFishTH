@@ -49,6 +49,52 @@ def test_rate_limit_retry_respects_retry_after():
     assert sleeps == [7.0]
 
 
+def test_rate_limit_retry_waits_for_reset_when_retry_after_is_zero(monkeypatch):
+    calls = []
+    sleeps = []
+    monkeypatch.setattr(zep.time, "time", lambda: 100.1)
+
+    def operation():
+        calls.append(True)
+        if len(calls) == 1:
+            raise ZepApiError(
+                status_code=429,
+                headers={
+                    "Retry-After": "0",
+                    "X-RateLimit-Reset": "101",
+                },
+                body={"message": "slow down"},
+            )
+        return "ok"
+
+    result = zep.call_zep_read_with_retry(
+        operation,
+        operation_name="rate limited read at window boundary",
+        sleep=sleeps.append,
+    )
+
+    assert result == "ok"
+    assert len(calls) == 2
+    assert sleeps == [1.0]
+
+
+def test_read_limiter_serializes_the_sixth_free_plan_request(monkeypatch):
+    clock = [0.0]
+    sleeps = []
+    monkeypatch.setattr(zep.time, "monotonic", lambda: clock[0])
+
+    def advance(seconds):
+        sleeps.append(seconds)
+        clock[0] += seconds
+
+    zep.clear_zep_read_rate_limit()
+    for _ in range(6):
+        zep._wait_for_zep_read_slot(sleep=advance)
+
+    assert sleeps == [60.0]
+    zep.clear_zep_read_rate_limit()
+
+
 def test_zep_client_is_shared_and_uses_an_explicit_timeout(monkeypatch):
     created = []
 
@@ -100,7 +146,7 @@ def test_zep_client_uses_internal_timeout_and_ignores_env_overrides(monkeypatch)
         "timeout": zep.ZEP_HTTP_REQUEST_TIMEOUT_SECONDS,
     }]
     assert zep.ZEP_HTTP_REQUEST_TIMEOUT_SECONDS == 60.0
-    assert zep.ZEP_INGESTION_WAIT_TIMEOUT_SECONDS == 600
+    assert zep.ZEP_INGESTION_WAIT_TIMEOUT_SECONDS == 1800
     zep.clear_zep_client_cache()
 
 

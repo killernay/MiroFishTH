@@ -363,6 +363,38 @@ def _check_simulation_prepared(simulation_id: str) -> tuple:
         
         status = state_data.get("status", "")
         config_generated = state_data.get("config_generated", False)
+
+        # A process restart can interrupt the metadata write after the profile
+        # and configuration artifacts have already been saved. Recover from
+        # that narrow state instead of regenerating every persona (and making
+        # unnecessary Zep/LLM requests).
+        profiles_file = os.path.join(simulation_dir, "reddit_profiles.json")
+        config_file = os.path.join(simulation_dir, "simulation_config.json")
+        with open(profiles_file, 'r', encoding='utf-8') as f:
+            profiles_data = json.load(f)
+        with open(config_file, 'r', encoding='utf-8') as f:
+            config_data = json.load(f)
+        artifacts_are_complete = (
+            isinstance(profiles_data, list)
+            and bool(profiles_data)
+            and isinstance(config_data, dict)
+            and bool(config_data)
+        )
+        if not config_generated and artifacts_are_complete:
+            state_data["status"] = "ready"
+            state_data["profiles_generated"] = True
+            state_data["profiles_count"] = len(profiles_data)
+            state_data["config_generated"] = True
+            config_generated = True
+            status = "ready"
+            from datetime import datetime
+            state_data["updated_at"] = datetime.now().isoformat()
+            with open(state_file, 'w', encoding='utf-8') as f:
+                json.dump(state_data, f, ensure_ascii=False, indent=2)
+            logger.warning(
+                "Recovered completed simulation preparation metadata: %s",
+                simulation_id,
+            )
         
         # 详细日志
         logger.debug(f"检测模拟准备状态: {simulation_id}, status={status}, config_generated={config_generated}")
@@ -378,14 +410,7 @@ def _check_simulation_prepared(simulation_id: str) -> tuple:
         prepared_statuses = ["ready", "preparing", "running", "completed", "stopped", "failed"]
         if status in prepared_statuses and config_generated:
             # 获取文件统计信息
-            profiles_file = os.path.join(simulation_dir, "reddit_profiles.json")
-            config_file = os.path.join(simulation_dir, "simulation_config.json")
-            
-            profiles_count = 0
-            if os.path.exists(profiles_file):
-                with open(profiles_file, 'r', encoding='utf-8') as f:
-                    profiles_data = json.load(f)
-                    profiles_count = len(profiles_data) if isinstance(profiles_data, list) else 0
+            profiles_count = len(profiles_data) if isinstance(profiles_data, list) else 0
             
             # 如果状态是preparing但文件已完成，自动更新状态为ready
             if status == "preparing":

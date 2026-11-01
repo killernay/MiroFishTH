@@ -9,6 +9,10 @@
 - **Quoted source evidence**: Text supplied by uploaded source material or preserved verbatim as evidence. It is not translated automatically; the UI and exports label it as quoted source evidence in the active interface locale.
 - **Legacy artifact**: A report or run created before locale persistence. Its content is preserved and is not translated automatically.
 
+## Graph memory
+
+- **Graph Memory Backend**: The service that stores simulation activity as episodes, extracts entities and relationships, supports graph retrieval, and supplies evidence to reports and interviews. Zep is the current implementation; a future backend may be self-hosted and open source.
+
 ## Remote access
 
 - **Office host**: The work machine that runs MiroFish continuously in Docker.

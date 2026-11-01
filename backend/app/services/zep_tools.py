@@ -916,28 +916,29 @@ class ZepToolsService:
             limit=limit
         )
         
-        # 获取图谱统计
-        stats = self.get_graph_statistics(graph_id)
-        
-        # 获取所有实体节点
-        all_nodes = self.get_all_nodes(graph_id)
-        
-        # 筛选有实际类型的实体（非纯Entity节点）
-        entities = []
-        for node in all_nodes:
-            custom_labels = [l for l in node.labels if l not in ["Entity", "Node"]]
-            if custom_labels:
-                entities.append({
-                    "name": node.name,
-                    "type": custom_labels[0],
-                    "summary": node.summary
-                })
+        # Do not enumerate the complete graph during report planning. On Zep's
+        # Free plan this turns one planning search into many paginated reads
+        # and can delay the report for tens of minutes. The semantic result is
+        # the evidence the outline needs; detailed graph inspection remains an
+        # explicit tool operation later in the report flow.
+        entities = [
+            {
+                "name": node.get("name", ""),
+                "type": (node.get("labels") or ["Entity"])[0],
+                "summary": node.get("summary", ""),
+            }
+            for node in search_result.nodes[:limit]
+        ]
         
         return {
             "simulation_requirement": simulation_requirement,
             "related_facts": search_result.facts,
-            "graph_statistics": stats,
-            "entities": entities[:limit],  # 限制数量
+            "graph_statistics": {
+                "source": "semantic_search",
+                "total_nodes": None,
+                "total_edges": None,
+            },
+            "entities": entities,
             "total_entities": len(entities)
         }
     
@@ -949,7 +950,7 @@ class ZepToolsService:
         query: str,
         simulation_requirement: str,
         report_context: str = "",
-        max_sub_queries: int = 5
+        max_sub_queries: int = 3
     ) -> InsightForgeResult:
         """
         【InsightForge - 深度洞察检索】
@@ -1024,7 +1025,11 @@ class ZepToolsService:
         result.semantic_facts = all_facts
         result.total_facts = len(all_facts)
         
-        # Step 3: 从边中提取相关实体UUID，只获取这些实体的信息（不获取全部节点）
+        # Step 3: 从边中提取相关实体 UUID。
+        # Do not fan out into one graph read per entity here: on Zep Free this
+        # turns a bounded report search into dozens of requests and triggers
+        # the five-requests-per-minute limit.  The ranked edge facts above are
+        # already the evidence used by the report.
         entity_uuids = set()
         for edge_data in all_edges:
             if isinstance(edge_data, dict):
@@ -1035,36 +1040,8 @@ class ZepToolsService:
                 if target_uuid:
                     entity_uuids.add(target_uuid)
         
-        # 获取所有相关实体的详情（不限制数量，完整输出）
         entity_insights = []
-        node_map = {}  # 用于后续关系链构建
-        
-        for uuid in list(entity_uuids):  # 处理所有实体，不截断
-            if not uuid:
-                continue
-            try:
-                # 单独获取每个相关节点的信息
-                node = self.get_node_detail(uuid)
-                if node:
-                    node_map[uuid] = node
-                    entity_type = next((l for l in node.labels if l not in ["Entity", "Node"]), t('zepTools.entity'))
-                    
-                    # 获取该实体相关的所有事实（不截断）
-                    related_facts = [
-                        f for f in all_facts 
-                        if node.name.lower() in f.lower()
-                    ]
-                    
-                    entity_insights.append({
-                        "uuid": node.uuid,
-                        "name": node.name,
-                        "type": entity_type,
-                        "summary": node.summary,
-                        "related_facts": related_facts  # 完整输出，不截断
-                    })
-            except Exception as e:
-                logger.debug(t("zepTools.nodeFetchFailed", uuid=uuid, error=e))
-                continue
+        node_map = {}
         
         result.entity_insights = entity_insights
         result.total_entities = len(entity_insights)
@@ -1173,64 +1150,22 @@ Break this question into at most {max_queries} sub-questions:
         
         result = PanoramaResult(query=query)
         
-        # 获取所有节点
-        all_nodes = self.get_all_nodes(graph_id)
-        node_map = {n.uuid: n for n in all_nodes}
-        result.all_nodes = all_nodes
-        result.total_nodes = len(all_nodes)
-        
-        # 获取所有边（包含时间信息）
-        all_edges = self.get_all_edges(graph_id, include_temporal=True)
-        result.all_edges = all_edges
-        result.total_edges = len(all_edges)
-        
-        # 分类事实
-        active_facts = []
-        historical_facts = []
-        
-        for edge in all_edges:
-            if not edge.fact:
-                continue
-            
-            # 为事实添加实体名称
-            source_name = node_map.get(edge.source_node_uuid, NodeInfo('', '', [], '', {})).name or edge.source_node_uuid[:8]
-            target_name = node_map.get(edge.target_node_uuid, NodeInfo('', '', [], '', {})).name or edge.target_node_uuid[:8]
-            
-            # 判断是否过期/失效
-            is_historical = edge.is_expired or edge.is_invalid
-            
-            if is_historical:
-                # 历史/过期事实，添加时间标记
-                valid_at = edge.valid_at or t('zepTools.unknown')
-                invalid_at = edge.invalid_at or edge.expired_at or t('zepTools.unknown')
-                fact_with_time = f"[{valid_at} - {invalid_at}] {edge.fact}"
-                historical_facts.append(fact_with_time)
-            else:
-                # 当前有效事实
-                active_facts.append(edge.fact)
-        
-        # 基于查询进行相关性排序
-        query_lower = query.lower()
-        keywords = [w.strip() for w in query_lower.replace(',', ' ').replace('，', ' ').split() if len(w.strip()) > 1]
-        
-        def relevance_score(fact: str) -> int:
-            fact_lower = fact.lower()
-            score = 0
-            if query_lower in fact_lower:
-                score += 100
-            for kw in keywords:
-                if kw in fact_lower:
-                    score += 10
-            return score
-        
-        # 排序并限制数量
-        active_facts.sort(key=relevance_score, reverse=True)
-        historical_facts.sort(key=relevance_score, reverse=True)
-        
-        result.active_facts = active_facts[:limit]
-        result.historical_facts = historical_facts[:limit] if include_expired else []
-        result.active_count = len(active_facts)
-        result.historical_count = len(historical_facts)
+        # A full graph scan makes this tool unusable on Zep Free plans. Use
+        # Zep's relevance-ranked edge search as a bounded panorama instead.
+        # It preserves the report's evidence-first behavior without loading
+        # hundreds of unrelated nodes and relationship pages.
+        search_result = self.search_graph(
+            graph_id=graph_id,
+            query=query,
+            limit=limit,
+            scope="edges",
+        )
+        result.active_facts = list(search_result.facts[:limit])
+        result.active_count = len(result.active_facts)
+        result.historical_facts = []
+        result.historical_count = 0
+        result.total_nodes = len(search_result.nodes)
+        result.total_edges = len(search_result.edges)
         
         logger.info(t("console.panoramaSearchComplete", active=result.active_count, historical=result.historical_count))
         return result

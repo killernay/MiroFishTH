@@ -165,10 +165,10 @@ const loadReportData = async () => {
               projectData.value = projRes.data
               addLog(t('log.projectLoadSuccess', { id: projRes.data.project_id }))
 
-              // 获取 graph 数据
-              if (projRes.data.graph_id) {
-                await loadGraph(projRes.data.graph_id)
-              }
+              // Do not load the entire graph automatically while a report is
+              // starting. On the Zep Free plan it competes with report
+              // retrieval and can exhaust the shared request budget. The user
+              // can still explicitly refresh the graph panel when needed.
             }
           }
         }

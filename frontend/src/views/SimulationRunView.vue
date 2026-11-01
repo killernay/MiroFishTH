@@ -69,7 +69,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import GraphPanel from '../components/GraphPanel.vue'
 import Step3Simulation from '../components/Step3Simulation.vue'
@@ -275,32 +275,6 @@ const refreshGraph = () => {
   }
 }
 
-// --- Auto Refresh Logic ---
-let graphRefreshTimer = null
-
-const startGraphRefresh = () => {
-  if (graphRefreshTimer) return
-  addLog(t('log.graphRealtimeRefreshStart'))
-  // 立即刷新一次，然后每30秒刷新
-  graphRefreshTimer = setInterval(refreshGraph, 30000)
-}
-
-const stopGraphRefresh = () => {
-  if (graphRefreshTimer) {
-    clearInterval(graphRefreshTimer)
-    graphRefreshTimer = null
-    addLog(t('log.graphRealtimeRefreshStop'))
-  }
-}
-
-watch(isSimulating, (newValue) => {
-  if (newValue) {
-    startGraphRefresh()
-  } else {
-    stopGraphRefresh()
-  }
-}, { immediate: true })
-
 onMounted(() => {
   addLog(t('log.simRunViewInit'))
   
@@ -312,9 +286,6 @@ onMounted(() => {
   loadSimulationData()
 })
 
-onUnmounted(() => {
-  stopGraphRefresh()
-})
 </script>
 
 <style scoped>

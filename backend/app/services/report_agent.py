@@ -1177,16 +1177,19 @@ class ReportAgent:
                 return self._execute_tool("quick_search", parameters, report_context)
             
             elif tool_name == "get_graph_statistics":
-                result = self.zep_tools.get_graph_statistics(self.graph_id)
-                return json.dumps(result, ensure_ascii=False, indent=2)
+                logger.info(t('report.redirectToQuickSearch'))
+                return self._execute_tool(
+                    "quick_search",
+                    {"query": self.simulation_requirement, "limit": 10},
+                    report_context,
+                )
             
             elif tool_name == "get_entity_summary":
                 entity_name = parameters.get("entity_name", "")
-                result = self.zep_tools.get_entity_summary(
-                    graph_id=self.graph_id,
-                    entity_name=entity_name
+                logger.info(t('report.redirectToQuickSearch'))
+                return self._execute_tool(
+                    "quick_search", {"query": entity_name, "limit": 10}, report_context
                 )
-                return json.dumps(result, ensure_ascii=False, indent=2)
             
             elif tool_name == "get_simulation_context":
                 # 重定向到 insight_forge，因为它更强大
@@ -1196,12 +1199,10 @@ class ReportAgent:
             
             elif tool_name == "get_entities_by_type":
                 entity_type = parameters.get("entity_type", "")
-                nodes = self.zep_tools.get_entities_by_type(
-                    graph_id=self.graph_id,
-                    entity_type=entity_type
+                logger.info(t('report.redirectToQuickSearch'))
+                return self._execute_tool(
+                    "quick_search", {"query": entity_type, "limit": 10}, report_context
                 )
-                result = [n.to_dict() for n in nodes]
-                return json.dumps(result, ensure_ascii=False, indent=2)
             
             else:
                 return f"未知工具: {tool_name}。请使用以下工具之一: insight_forge, panorama_search, quick_search"

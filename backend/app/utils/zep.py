@@ -4,7 +4,10 @@ from __future__ import annotations
 
 import os
 import time
+from math import ceil
+from collections import deque
 from functools import lru_cache
+from threading import Lock
 from typing import Any, Callable, TypeVar
 
 import httpx
@@ -23,11 +26,20 @@ ZEP_CLOUD_BASE_URL = "https://api.getzep.com/api/v2"
 # MiroFish used before introducing the shared client. This is an internal
 # integration policy, not a deployment setting users need to tune.
 ZEP_HTTP_REQUEST_TIMEOUT_SECONDS = 60.0
-# Zep ingestion is asynchronous and may take several minutes. Preserve the
-# original GraphBuilder deadline while keeping it separate from HTTP timeout.
-ZEP_INGESTION_WAIT_TIMEOUT_SECONDS = 600
+# Zep ingestion is asynchronous. Medium-sized source sets can take longer than
+# ten minutes even while the remote batch continues making progress, so keep a
+# separate, conservative deadline from individual HTTP request timeouts.
+ZEP_INGESTION_WAIT_TIMEOUT_SECONDS = 1800
 MAX_ZEP_SEARCH_QUERY_CHARS = 400
 MAX_ZEP_SEARCH_RESULTS = 50
+# The current Zep Free plan advertises a five-request fixed window. Apply the
+# same conservative rolling window locally so independent graph refreshes and
+# report workers cannot race each other into a 429.
+ZEP_FREE_READS_PER_MINUTE = 5
+ZEP_FREE_READ_WINDOW_SECONDS = 60.0
+
+_zep_read_rate_lock = Lock()
+_zep_read_timestamps: deque[float] = deque()
 
 
 def normalize_zep_search_query(query: Any) -> str:
@@ -89,6 +101,38 @@ def clear_zep_client_cache() -> None:
     _cached_zep_client.cache_clear()
 
 
+def clear_zep_read_rate_limit() -> None:
+    """Clear local Zep read accounting for tests and controlled restarts."""
+
+    with _zep_read_rate_lock:
+        _zep_read_timestamps.clear()
+
+
+def _wait_for_zep_read_slot(
+    *, sleep: Callable[[float], None] = time.sleep,
+) -> None:
+    """Reserve one process-wide Zep Free-plan read slot before an API call."""
+
+    while True:
+        now = time.monotonic()
+        with _zep_read_rate_lock:
+            while (
+                _zep_read_timestamps
+                and now - _zep_read_timestamps[0] >= ZEP_FREE_READ_WINDOW_SECONDS
+            ):
+                _zep_read_timestamps.popleft()
+            if len(_zep_read_timestamps) < ZEP_FREE_READS_PER_MINUTE:
+                _zep_read_timestamps.append(now)
+                return
+            delay = (
+                ZEP_FREE_READ_WINDOW_SECONDS
+                - (now - _zep_read_timestamps[0])
+            )
+        # Do not hold the lock while waiting: another reader may finish its
+        # own request, and all waiters re-check the shared window afterwards.
+        sleep(max(0.01, delay))
+
+
 def is_retryable_zep_error(error: BaseException) -> bool:
     """Return whether a failed *read* is safe and useful to retry."""
 
@@ -123,6 +167,46 @@ def _retry_after_seconds(error: BaseException) -> float | None:
         return None
 
 
+def _rate_limit_reset_seconds(error: BaseException) -> float | None:
+    """Return seconds until Zep's rate-limit window resets, when supplied."""
+
+    if not isinstance(error, ZepApiError) or not error.headers:
+        return None
+    value = next(
+        (
+            header_value
+            for header_name, header_value in error.headers.items()
+            if header_name.lower() == "x-ratelimit-reset"
+        ),
+        None,
+    )
+    if value is None:
+        return None
+    try:
+        return max(0.0, float(value) - time.time())
+    except (TypeError, ValueError):
+        return None
+
+
+def _retry_delay_seconds(error: BaseException, fallback_delay: float) -> float:
+    """Choose a safe retry delay, including Zep's absolute reset timestamp."""
+
+    retry_after = _retry_after_seconds(error)
+    if not isinstance(error, ZepApiError) or error.status_code != 429:
+        return retry_after if retry_after is not None else fallback_delay
+
+    # Zep can return ``Retry-After: 0`` in the final second of a fixed
+    # window. Retrying immediately consumes another attempt before the window
+    # has reset. The absolute reset header is authoritative in that case.
+    reset_after = _rate_limit_reset_seconds(error)
+    delays = []
+    if retry_after is not None:
+        delays.append(max(1.0, retry_after))
+    if reset_after is not None:
+        delays.append(max(1.0, float(ceil(reset_after))))
+    return max(delays, default=max(1.0, fallback_delay))
+
+
 def call_zep_read_with_retry(
     operation: Callable[[], T],
     *,
@@ -139,14 +223,14 @@ def call_zep_read_with_retry(
 
     for attempt in range(1, max_attempts + 1):
         try:
+            _wait_for_zep_read_slot(sleep=sleep)
             return operation()
         except Exception as error:
             if attempt == max_attempts or not is_retryable_zep_error(error):
                 raise
 
-            retry_after = _retry_after_seconds(error)
             delay = min(
-                retry_after if retry_after is not None else initial_delay * (2 ** (attempt - 1)),
+                _retry_delay_seconds(error, initial_delay * (2 ** (attempt - 1))),
                 max_delay,
             )
             logger.warning(

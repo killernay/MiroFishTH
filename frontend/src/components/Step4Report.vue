@@ -66,7 +66,14 @@
         </div>
 
         <!-- Waiting State -->
-        <div v-if="!reportOutline" class="waiting-placeholder">
+        <div v-if="reportFailed" class="waiting-placeholder">
+          <span class="waiting-text">การสร้างรายงานล้มเหลว</span>
+          <p>{{ reportError }}</p>
+          <button class="next-step-btn" type="button" @click="returnToSimulation">
+            กลับไปสร้างรายงานใหม่
+          </button>
+        </div>
+        <div v-else-if="!reportOutline" class="waiting-placeholder">
           <div class="waiting-animation">
             <div class="waiting-ring"></div>
             <div class="waiting-ring"></div>
@@ -403,7 +410,7 @@
 import { ref, computed, watch, onMounted, onUnmounted, nextTick, h, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { getAgentLog, getConsoleLog, cancelReport } from '../api/report'
+import { getAgentLog, getConsoleLog, getReport, cancelReport } from '../api/report'
 
 const router = useRouter()
 const { t } = useI18n()
@@ -420,6 +427,12 @@ const emit = defineEmits(['add-log', 'update-status'])
 const goToInteraction = () => {
   if (props.reportId) {
     router.push({ name: 'Interaction', params: { reportId: props.reportId } })
+  }
+}
+
+const returnToSimulation = () => {
+  if (props.simulationId) {
+    router.push({ name: 'SimulationRun', params: { simulationId: props.simulationId } })
   }
 }
 
@@ -450,6 +463,8 @@ const expandedLogs = ref(new Set())
 const collapsedSections = ref(new Set())
 const isComplete = ref(false)
 const cancelRequested = ref(false)
+const reportFailed = ref(false)
+const reportError = ref('')
 const startTime = ref(null)
 const leftPanel = ref(null)
 const rightPanel = ref(null)
@@ -2179,11 +2194,27 @@ const fetchConsoleLog = async () => {
   }
 }
 
+const fetchReportStatus = async () => {
+  if (!props.reportId || reportFailed.value || isComplete.value) return
+  try {
+    const res = await getReport(props.reportId)
+    if (res?.data?.status === 'failed') {
+      reportFailed.value = true
+      reportError.value = res.data.error || 'โปรดลองสร้างรายงานใหม่'
+      emit('update-status', 'error')
+      stopPolling()
+    }
+  } catch (err) {
+    console.warn('Failed to fetch report status:', err)
+  }
+}
+
 const startPolling = () => {
   if (agentLogTimer || consoleLogTimer) return
   
   fetchAgentLog()
   fetchConsoleLog()
+  fetchReportStatus()
   
   agentLogTimer = setInterval(fetchAgentLog, 2000)
   consoleLogTimer = setInterval(fetchConsoleLog, 1500)
@@ -2226,6 +2257,8 @@ watch(() => props.reportId, (newId) => {
     collapsedSections.value = new Set()
     isComplete.value = false
     cancelRequested.value = false
+    reportFailed.value = false
+    reportError.value = ''
     startTime.value = null
     
     startPolling()

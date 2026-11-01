@@ -804,6 +804,13 @@ const initOrResumeSimulation = async () => {
         return
       }
 
+      if (existingState === 'failed') {
+        phase.value = 2
+        emit('update-status', 'error')
+        addLog(t('log.simFailed') + (existing.error ? `: ${existing.error}` : ''))
+        return
+      }
+
       if (['running', 'awaiting_finish', 'finishing'].includes(existingState)) {
         phase.value = existingState === 'awaiting_finish' ? 2 : 1
         if (existingState === 'awaiting_finish') await refreshReportReady()

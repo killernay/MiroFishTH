@@ -30,6 +30,63 @@ def test_panorama_wrapper_is_english_while_source_facts_remain_verbatim():
     assert "当前有效事实" not in text
 
 
+def test_panorama_search_uses_bounded_semantic_search_not_a_full_graph_scan():
+    service = ZepToolsService.__new__(ZepToolsService)
+    calls = []
+
+    def search_graph(**kwargs):
+        calls.append(kwargs)
+        return SearchResult(
+            query=kwargs["query"],
+            facts=["relevant fact"],
+            edges=[{"uuid": "edge-1"}],
+            nodes=[],
+            total_count=1,
+        )
+
+    service.search_graph = search_graph
+    service.get_all_nodes = lambda _graph_id: (_ for _ in ()).throw(AssertionError("must not scan nodes"))
+    service.get_all_edges = lambda _graph_id, **_kwargs: (_ for _ in ()).throw(AssertionError("must not scan edges"))
+
+    result = service.panorama_search("graph", "query", limit=10)
+
+    assert result.active_facts == ["relevant fact"]
+    assert result.total_edges == 1
+    assert calls == [{"graph_id": "graph", "query": "query", "limit": 10, "scope": "edges"}]
+
+
+def test_insight_forge_does_not_fan_out_to_per_entity_graph_reads():
+    service = ZepToolsService.__new__(ZepToolsService)
+    service._generate_sub_queries = lambda **_kwargs: ["sub-query"]
+    service.get_node_detail = lambda _uuid: (_ for _ in ()).throw(
+        AssertionError("insight search must not read every entity")
+    )
+
+    def search_graph(**kwargs):
+        return SearchResult(
+            query=kwargs["query"],
+            facts=["relevant fact"],
+            edges=[
+                {
+                    "uuid": "edge-1",
+                    "source_node_uuid": "source-id",
+                    "target_node_uuid": "target-id",
+                    "name": "affects",
+                }
+            ],
+            nodes=[],
+            total_count=1,
+        )
+
+    service.search_graph = search_graph
+
+    result = service.insight_forge("graph", "query", "simulation")
+
+    assert result.semantic_facts == ["relevant fact"]
+    assert result.total_entities == 0
+    assert result.relationship_chains == ["source-i --[affects]--> target-i"]
+
+
 def test_insight_and_interview_wrappers_follow_thai_locale():
     set_locale("th")
 

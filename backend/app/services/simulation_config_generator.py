@@ -600,7 +600,7 @@ Generate the time config JSON.
 - {_format_hour_range(profile["peak_hours"])}: evening peak (activity multiplier 1.5)
 - From {_format_hour_range(profile["late_night_hours"])}: activity declines (activity multiplier 0.5)
 - General pattern: low activity in the early morning, rising in the morning, moderate during working hours, peak in the evening
-- **Important**: the example values below are for reference only; adjust the specific periods to the nature of the event and the characteristics of the participant groups
+- **Important**: these example values are for reference only; adjust the specific periods to the nature of the event and the characteristics of the participant groups
   - e.g. students may peak at 21-23; media are active all day; official institutions only during working hours
   - e.g. breaking news may keep discussion going late at night, so off_peak_hours can be shortened
 
